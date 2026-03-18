@@ -1,74 +1,38 @@
-# Tauri Zoom Thing
+# Code Atlas
 
-A desktop application built with Tauri v2 featuring zoom/pan capabilities.
+A local-first desktop app that turns a codebase into an interactive, zoomable architecture map. Point it at a repo, get a navigable nested graph — packages, modules, files, and their dependencies — without sending code anywhere.
 
-## What is Tauri?
+**Status: WIP — product requirements and research are still being finalized. No application code yet.**
 
-Tauri is a framework for building lightweight, secure desktop applications with a Rust backend and web frontend. Think Electron but with a Rust core instead of Node.js — smaller binaries, lower memory usage, and better security.
+## Goal
 
-**Key concepts:**
-- **Frontend**: A standard web app (React, in our case) that runs in a native webview — not a bundled Chromium
-- **Backend**: Rust code that handles system-level operations, exposed to the frontend via "commands" (like RPC calls)
-- **IPC bridge**: The `@tauri-apps/api` package lets your TypeScript call Rust functions seamlessly
+Build a proof of concept that validates:
+- Parsing a real Rust/TypeScript project with tree-sitter
+- Building a hierarchical graph in Rust (petgraph)
+- Rendering it as a zoomable, nested compound visualization (React Flow + ELK)
+- Adaptive expand/collapse so the graph never becomes an unreadable hairball
 
-## Recommendations for Getting Started
+## Stack
 
-### 1. Prerequisites
-- **Rust** (stable): `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-- **Node.js 22+** and **pnpm**: `npm install -g pnpm`
-- **macOS**: Xcode Command Line Tools (`xcode-select --install`)
+Tauri v2 (Rust backend + React/TypeScript frontend), React Flow v12, ELK.js, petgraph, tree-sitter.
 
-### 2. Scaffold the Tauri project
-```bash
-pnpm create tauri-app --template react-ts
-```
-This generates the full project structure with Rust backend + React/TypeScript frontend pre-wired.
+## Docs
 
-### 3. Project structure (after scaffolding)
-```
-src/              # React frontend (TypeScript)
-src-tauri/        # Rust backend
-  src/
-    main.rs       # Tauri entry point
-    lib.rs        # Your Rust commands live here
-  Cargo.toml      # Rust dependencies
-  tauri.conf.json # Tauri configuration
-package.json      # Frontend dependencies
-```
-
-### 4. Key Tauri patterns to know
-
-**Calling Rust from TypeScript:**
-```rust
-// src-tauri/src/lib.rs
-#[tauri::command]
-fn get_zoom_level() -> f64 {
-    1.0
-}
-```
-```typescript
-// src/App.tsx
-import { invoke } from '@tauri-apps/api/core';
-const zoom = await invoke<number>('get_zoom_level');
-```
-
-**Tauri v2 permissions:** Tauri v2 uses a capability-based security model. You must declare which APIs your app can use in `src-tauri/capabilities/`. This is more work upfront but prevents accidental exposure.
-
-### 5. Zoom feature considerations
-- **CSS transforms** (`transform: scale()`) are the simplest approach for basic zoom on web content
-- **Canvas-based zoom** (HTML Canvas or WebGL) gives you more control for custom rendering
-- For a "Zoom-like" video conferencing feature, look into WebRTC + Tauri's window management APIs
-- Tauri v2's `WebviewWindow` API allows multi-window setups if needed
-
-### 6. Useful resources
-- [Tauri v2 docs](https://v2.tauri.app)
-- [Tauri v2 JavaScript API](https://v2.tauri.app/reference/javascript/)
-- [Tauri v2 Rust API](https://docs.rs/tauri/latest/tauri/)
+- [`docs/prd.md`](docs/prd.md) — Product requirements (POC / MVP / Vision phases)
+- [`research/consolidated-technical-decisions.md`](research/consolidated-technical-decisions.md) — Technical decisions with rationale
+- [`research/consolidated-market-and-product.md`](research/consolidated-market-and-product.md) — Market analysis and product positioning
 
 ## Development
+
 ```bash
-pnpm dev       # Start dev server with hot reload
+pnpm dev       # Tauri dev (launches app with hot reload)
 pnpm build     # Production build
-pnpm test      # Run frontend tests
-cargo test     # Run Rust tests
+pnpm test      # Frontend tests (Vitest)
+cargo test     # Rust tests
 ```
+
+### Prerequisites
+
+- Rust (stable) via rustup
+- Node.js 22+ and pnpm
+- macOS: Xcode Command Line Tools (`xcode-select --install`)

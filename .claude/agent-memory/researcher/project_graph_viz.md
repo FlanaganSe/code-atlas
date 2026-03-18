@@ -6,7 +6,7 @@ type: project
 
 Researched graph visualization stack for Tauri POC (code architecture viewer: nested packages, files, services).
 
-**Decision:** `@xyflow/react` v12 + `elkjs` (Web Worker) + `petgraph` + `syn`
+**Decision:** `@xyflow/react` v12 + `elkjs` (Web Worker) + `petgraph` + `tree-sitter` (syn eliminated — not error-tolerant)
 
 **Why:** React Flow nodes are arbitrary React components (testable with Vitest + RTL, full JSX for custom node UI). ELK.js is the only layout engine that natively handles compound/hierarchical graphs with port-based edge routing. petgraph covers Rust-side graph construction and analysis. syn parses Rust AST for dependency extraction.
 
@@ -39,4 +39,4 @@ Researched graph visualization stack for Tauri POC (code architecture viewer: ne
 - `<Panel>` — 9 position options for fixed overlays
 - Dark mode: `colorMode` prop on `<ReactFlow />`
 
-**Research file:** `.claude/plans/research.md` (Sections 3 and 7, dated 2026-03-17)
+**Research file:** `research/consolidated-technical-decisions.md` (Section 2, Graph Rendering Stack)
