@@ -1,0 +1,32 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"lineWidth": 100
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true
+		}
+	},
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": {
+					"level": "on"
+				}
+			}
+		}
+	},
+	"files": {
+		"includes": ["src/**", "*.ts", "*.json"],
+		"experimentalScannerIgnores": [
+			"dist/**",
+			"src-tauri/target/**",
+			"src-tauri/gen/**",
+			"node_modules/**"
+		]
+	}
+}

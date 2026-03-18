@@ -1,0 +1,21 @@
+[package]
+name = "codeatlas-tauri"
+description = "Tauri desktop shell for Code Atlas"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[lib]
+name = "codeatlas_tauri_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+codeatlas-core = { path = "../crates/codeatlas-core" }
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-shell = "2"
+serde.workspace = true
+serde_json.workspace = true

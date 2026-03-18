@@ -1,0 +1,64 @@
+/**
+ * Scan event types — mirrors Rust serde output.
+ *
+ * ScanPhase and ScanResults are domain types from codeatlas-core.
+ * ScanEvent is the transport envelope from codeatlas-tauri.
+ */
+
+import type { CompatibilityReport, GraphHealth } from "./config";
+import type { EdgeData, NodeData } from "./graph";
+
+// ---------------------------------------------------------------------------
+// ScanPhase
+// ---------------------------------------------------------------------------
+
+export type ScanPhase = "packageTopology" | "moduleStructure" | "fileEdges";
+
+// ---------------------------------------------------------------------------
+// ScanStatus
+// ---------------------------------------------------------------------------
+
+export type ScanStatus = "idle" | "scanning" | "complete" | "error" | "cancelled";
+
+// ---------------------------------------------------------------------------
+// ScanEvent (transport envelope — from codeatlas-tauri)
+// ---------------------------------------------------------------------------
+
+/** Discriminated union of scan events delivered via Channel<T>. */
+export type ScanEvent =
+	| {
+			readonly event: "compatibilityReport";
+			readonly data: CompatibilityReport;
+	  }
+	| {
+			readonly event: "phase";
+			readonly data: {
+				readonly scanId: string;
+				readonly phase: ScanPhase;
+				readonly nodes: readonly NodeData[];
+				readonly edges: readonly EdgeData[];
+			};
+	  }
+	| {
+			readonly event: "health";
+			readonly data: GraphHealth;
+	  }
+	| {
+			readonly event: "progress";
+			readonly data: {
+				readonly scanned: number;
+				readonly total: number;
+			};
+	  }
+	| {
+			readonly event: "complete";
+			readonly data: {
+				readonly scanId: string;
+			};
+	  }
+	| {
+			readonly event: "error";
+			readonly data: {
+				readonly message: string;
+			};
+	  };

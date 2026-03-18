@@ -13,6 +13,7 @@ dist/
 
 # Rust / Tauri
 target/
+src-tauri/gen/
 
 # Environment
 .env
@@ -23,3 +24,6 @@ target/
 .idea/
 *.swp
 *.swo
+
+# TypeScript build info
+*.tsbuildinfo

@@ -1,0 +1,18 @@
+[workspace]
+members = ["crates/*", "src-tauri"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["Sean Flanagan"]
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+camino = { version = "1", features = ["serde1"] }
+petgraph = "0.8"
+serde_yaml = "0.9"
+globset = "0.4"
+tracing = "0.1"
+serde_json = "1"

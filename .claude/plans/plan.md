@@ -302,7 +302,15 @@ tauri-poc-zoom-thing/
 #### M1: Scaffold + Architecture
 **Goal:** Tauri v2 + React + Vite builds and launches. `codeatlas-core` exists with all domain types, traits, and the identity scheme. No functionality yet — just the skeleton.
 
-- [ ] M1: Scaffold + Architecture — buildable Tauri app with core crate + domain types + detector trait
+- [x] M1: Scaffold + Architecture — buildable Tauri app with core crate + domain types + detector trait
+  - [x] Step 1 — Scaffold Tauri v2 + React app with `pnpm create tauri-app` → verify: `pnpm tauri dev` launches
+  - [x] Step 2 — Cargo workspace with src-tauri/ + crates/codeatlas-core/ (spike: crates/codeatlas-tauri/ skipped, Tauri CLI requires src-tauri/) → verify: `cargo check --workspace`
+  - [x] Step 3 — Create codeatlas-core with all domain types, traits, identity scheme, graph model, config schema, overlay model → verify: `cargo check -p codeatlas-core`
+  - [x] Step 4 — Set up Biome 2.x, lefthook, Tailwind CSS v4 → verify: `pnpm biome check`
+  - [x] Step 5 — Write TypeScript types in src/types/ mirroring Rust serde output → verify: `pnpm typecheck`
+  - [x] Step 6 — Write Rust unit tests + serde contract tests (38 tests) → verify: `cargo test --workspace`
+  - [x] Step 7 — Final verification: `cargo clippy --workspace -- -D warnings`, `cargo test --workspace`, `pnpm typecheck`, `pnpm biome check`
+  Commit: "feat: scaffold Tauri v2 app with codeatlas-core domain types and architecture"
 
 **What to verify:**
 - `pnpm dev` launches the Tauri window with a React "hello world"

@@ -1,0 +1,10 @@
+pre-commit:
+  parallel: true
+  commands:
+    biome:
+      run: pnpm biome check --staged --no-errors-on-unmatched
+      stage_fixed: true
+    clippy:
+      run: cargo clippy --workspace -- -D warnings
+    rustfmt:
+      run: cargo fmt --check
