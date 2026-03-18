@@ -11,5 +11,5 @@ description: Technology choices and constraints.
 - **Styling**: Tailwind CSS v4
 - **Tests**: Vitest (frontend) + cargo test (Rust)
 - **Package manager**: pnpm (frontend) + Cargo (Rust)
-- **Linter**: ESLint + Prettier (frontend) + clippy (Rust)
+- **Linter**: Biome 2.x (frontend lint + format) + clippy (Rust)
 - **Bundler**: Vite
