@@ -97,6 +97,7 @@ export interface GraphStore {
 	expandedNodeIds: Set<string>;
 	categoryFilter: Set<EdgeCategory>;
 	showSuppressed: boolean;
+	selectedNodeId: string | null;
 
 	// Projected data (derived)
 	projectedNodes: AppNode[];
@@ -105,6 +106,9 @@ export interface GraphStore {
 	// Layout version — incremented on each projection to trigger ELK layout
 	// without creating a dependency cycle (layout updates projectedNodes positions)
 	layoutVersion: number;
+
+	// Viewport to restore after rescan
+	pendingViewport: { x: number; y: number; zoom: number } | null;
 
 	// Actions
 	loadFixture: (
@@ -124,6 +128,11 @@ export interface GraphStore {
 	collapseAll: () => void;
 	setCategoryFilter: (categories: Set<EdgeCategory>) => void;
 	toggleSuppressed: () => void;
+	selectNode: (nodeId: string) => void;
+	deselectNode: () => void;
+	expandAncestorsOf: (nodeId: string) => void;
+	restoreExpandedState: (savedExpandedIds: ReadonlySet<string>) => void;
+	setPendingViewport: (viewport: { x: number; y: number; zoom: number } | null) => void;
 
 	applyOverlay: (manualEdges: readonly EdgeData[], suppressedEdgeIds: readonly string[]) => void;
 
@@ -162,10 +171,12 @@ export const useGraphStore = create<GraphStore>()((set, get) => ({
 	expandedNodeIds: new Set(),
 	categoryFilter: new Set(ALL_CATEGORIES),
 	showSuppressed: false,
+	selectedNodeId: null,
 
 	projectedNodes: [],
 	projectedEdges: [],
 	layoutVersion: 0,
+	pendingViewport: null,
 
 	loadFixture: (nodes, edges, overlayEdges = [], suppressedEdgeIds = new Set()) => {
 		const expandedNodeIds = computeInitialExpanded(nodes);
@@ -231,6 +242,8 @@ export const useGraphStore = create<GraphStore>()((set, get) => ({
 			expandedNodeIds: new Set(),
 			projectedNodes: [],
 			projectedEdges: [],
+			selectedNodeId: null,
+			pendingViewport: null,
 			layoutVersion: get().layoutVersion + 1,
 		});
 	},
@@ -314,6 +327,56 @@ export const useGraphStore = create<GraphStore>()((set, get) => ({
 			...runProjection(newState),
 			layoutVersion: state.layoutVersion + 1,
 		});
+	},
+
+	selectNode: (nodeId) => {
+		set({ selectedNodeId: nodeId });
+	},
+
+	deselectNode: () => {
+		set({ selectedNodeId: null });
+	},
+
+	expandAncestorsOf: (nodeId) => {
+		const state = get();
+		const parentMap = new Map<string, string>();
+		for (const node of state.discoveredNodes) {
+			if (node.parentId) parentMap.set(node.id, node.parentId);
+		}
+
+		const next = new Set(state.expandedNodeIds);
+		let current = parentMap.get(nodeId);
+		while (current) {
+			next.add(current);
+			current = parentMap.get(current);
+		}
+
+		const newState = { ...state, expandedNodeIds: next };
+		set({
+			expandedNodeIds: next,
+			...runProjection(newState),
+			layoutVersion: state.layoutVersion + 1,
+		});
+	},
+
+	restoreExpandedState: (savedExpandedIds) => {
+		const state = get();
+		const nodeIdSet = new Set(state.discoveredNodes.map((n) => n.id));
+		const validIds = new Set<string>();
+		for (const id of savedExpandedIds) {
+			if (nodeIdSet.has(id)) validIds.add(id);
+		}
+
+		const newState = { ...state, expandedNodeIds: validIds };
+		set({
+			expandedNodeIds: validIds,
+			...runProjection(newState),
+			layoutVersion: state.layoutVersion + 1,
+		});
+	},
+
+	setPendingViewport: (viewport) => {
+		set({ pendingViewport: viewport });
 	},
 
 	onNodesChange: (changes) => {

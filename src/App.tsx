@@ -1,9 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { EdgeFilterBar } from "./components/graph/EdgeFilterBar";
 import { GraphCanvas } from "./components/graph/GraphCanvas";
 import { CompatibilityPanel } from "./components/panels/CompatibilityPanel";
+import { DetailPanel } from "./components/panels/DetailPanel";
 import { HealthIndicator } from "./components/panels/HealthIndicator";
 import { ProfileBadge } from "./components/panels/ProfileBadge";
+import { CommandPalette } from "./components/search/CommandPalette";
 import {
 	fixtureEdges,
 	fixtureNodes,
@@ -11,6 +14,7 @@ import {
 	fixtureSuppressedEdgeIds,
 } from "./fixtures/demo-graph";
 import { useScan } from "./hooks/use-scan";
+import { fitView, getViewport } from "./hooks/viewport-ref";
 import { useGraphStore } from "./store/graph-store";
 import { useScanStore } from "./store/scan-store";
 import type {
@@ -30,17 +34,21 @@ type AppState =
 export function App(): React.JSX.Element {
 	const [state, setState] = useState<AppState>({ status: "idle" });
 	const [compatPanelOpen, setCompatPanelOpen] = useState(false);
+	const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 	const loadFixture = useGraphStore((s) => s.loadFixture);
 	const hasGraph = useGraphStore((s) => s.discoveredNodes.length > 0);
 	const expandAll = useGraphStore((s) => s.expandAll);
 	const collapseAll = useGraphStore((s) => s.collapseAll);
-	const toggleSuppressed = useGraphStore((s) => s.toggleSuppressed);
-	const showSuppressed = useGraphStore((s) => s.showSuppressed);
+	const selectedNodeId = useGraphStore((s) => s.selectedNodeId);
+	const selectNode = useGraphStore((s) => s.selectNode);
+	const deselectNode = useGraphStore((s) => s.deselectNode);
+	const expandAncestorsOf = useGraphStore((s) => s.expandAncestorsOf);
 
 	const scanStatus = useScanStore((s) => s.scanStatus);
 	const scanProgress = useScanStore((s) => s.progress);
 	const scanCompatReport = useScanStore((s) => s.compatibilityReport);
-	const { startScan, cancelScan } = useScan();
+	const scanPath = useScanStore((s) => s.scanPath);
+	const { startScan, cancelScan, rescan } = useScan();
 
 	// Use the enriched (post-scan) compatibility report if available, else discovery report
 	const discoveryResult = state.status === "discovered" ? state.result : null;
@@ -76,6 +84,78 @@ export function App(): React.JSX.Element {
 		loadFixture(fixtureNodes, fixtureEdges, fixtureOverlayEdges, new Set(fixtureSuppressedEdgeIds));
 	}
 
+	async function handleRescan(): Promise<void> {
+		const vp = getViewport();
+		if (!vp) return;
+		await rescan(() => vp);
+	}
+
+	// Navigate to a node from search: expand ancestors, select, center
+	const handleNavigateToNode = useCallback(
+		(nodeId: string) => {
+			expandAncestorsOf(nodeId);
+			selectNode(nodeId);
+			// After layout settles, center on the node
+			setTimeout(() => {
+				fitView({ nodes: [{ id: nodeId }], duration: 300 });
+			}, 500);
+		},
+		[expandAncestorsOf, selectNode],
+	);
+
+	// Keyboard shortcuts
+	useEffect(() => {
+		function handleKeyDown(e: KeyboardEvent): void {
+			// Don't trigger shortcuts when typing in inputs
+			const target = e.target as HTMLElement;
+			if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
+				// Allow Escape even in inputs
+				if (e.key !== "Escape") return;
+			}
+
+			// Cmd+K / Ctrl+K — open command palette
+			if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+				e.preventDefault();
+				setCommandPaletteOpen(true);
+				return;
+			}
+
+			// Cmd+0 / Ctrl+0 — fit view
+			if ((e.metaKey || e.ctrlKey) && e.key === "0") {
+				e.preventDefault();
+				fitView({ duration: 300 });
+				return;
+			}
+
+			// Cmd+Shift+E — expand all
+			if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "E") {
+				e.preventDefault();
+				expandAll();
+				return;
+			}
+
+			// Cmd+Shift+C — collapse all
+			if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "C") {
+				e.preventDefault();
+				collapseAll();
+				return;
+			}
+
+			// Escape — close palette, deselect, close panel
+			if (e.key === "Escape") {
+				if (commandPaletteOpen) {
+					setCommandPaletteOpen(false);
+				} else if (selectedNodeId) {
+					deselectNode();
+				}
+				return;
+			}
+		}
+
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [commandPaletteOpen, selectedNodeId, expandAll, collapseAll, deselectNode]);
+
 	const isScanning = scanStatus === "scanning";
 
 	return (
@@ -83,7 +163,6 @@ export function App(): React.JSX.Element {
 			<header className="flex shrink-0 items-center justify-between border-b border-neutral-800 px-6 py-3">
 				<div className="flex items-center gap-3">
 					<h1 className="text-xl font-semibold">Code Atlas</h1>
-					{/* Profile badge in header when graph is showing */}
 					{hasGraph && discoveryResult && (
 						<ProfileBadge
 							result={discoveryResult}
@@ -106,34 +185,23 @@ export function App(): React.JSX.Element {
 							Cancel Scan
 						</button>
 					)}
+					{hasGraph && !isScanning && scanPath && (
+						<button
+							type="button"
+							onClick={handleRescan}
+							className="rounded bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-300 transition-colors hover:bg-neutral-700"
+						>
+							Rescan
+						</button>
+					)}
 					{hasGraph && (
-						<>
-							<button
-								type="button"
-								onClick={expandAll}
-								className="rounded bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-300 transition-colors hover:bg-neutral-700"
-							>
-								Expand All
-							</button>
-							<button
-								type="button"
-								onClick={collapseAll}
-								className="rounded bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-300 transition-colors hover:bg-neutral-700"
-							>
-								Collapse All
-							</button>
-							<button
-								type="button"
-								onClick={toggleSuppressed}
-								className={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${
-									showSuppressed
-										? "bg-amber-900/50 text-amber-300"
-										: "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
-								}`}
-							>
-								{showSuppressed ? "Hide Suppressed" : "Show Suppressed"}
-							</button>
-						</>
+						<button
+							type="button"
+							onClick={() => setCommandPaletteOpen(true)}
+							className="rounded bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-400 transition-colors hover:bg-neutral-700"
+						>
+							Search <kbd className="ml-1 rounded bg-neutral-700 px-1 py-0.5 text-[10px]">⌘K</kbd>
+						</button>
 					)}
 					{state.status === "discovered" && !isScanning && (
 						<button
@@ -162,14 +230,27 @@ export function App(): React.JSX.Element {
 				</div>
 			</header>
 
-			{/* Health indicator bar — shown in graph view */}
+			{/* Health indicator bar */}
 			{hasGraph && <HealthIndicator />}
+
+			{/* Edge filter bar */}
+			{hasGraph && <EdgeFilterBar />}
 
 			<div className="flex min-h-0 flex-1">
 				{hasGraph ? (
-					<div className="flex-1">
-						<GraphCanvas />
-					</div>
+					<>
+						<div className="min-w-0 flex-1">
+							<GraphCanvas />
+						</div>
+						{/* Detail panel — slides in from right */}
+						<div
+							className={`overflow-hidden transition-[width] duration-200 ease-in-out ${
+								selectedNodeId ? "w-80" : "w-0"
+							}`}
+						>
+							<DetailPanel />
+						</div>
+					</>
 				) : (
 					<div className="flex-1 overflow-auto p-6">
 						{state.status === "idle" && <IdleView />}
@@ -180,12 +261,21 @@ export function App(): React.JSX.Element {
 				)}
 			</div>
 
-			{/* Compatibility report panel (sheet) */}
+			{/* Compatibility report panel */}
 			{activeCompatReport && (
 				<CompatibilityPanel
 					report={activeCompatReport}
 					open={compatPanelOpen}
 					onOpenChange={setCompatPanelOpen}
+				/>
+			)}
+
+			{/* Command palette */}
+			{hasGraph && (
+				<CommandPalette
+					open={commandPaletteOpen}
+					onOpenChange={setCommandPaletteOpen}
+					onNavigateToNode={handleNavigateToNode}
 				/>
 			)}
 		</main>

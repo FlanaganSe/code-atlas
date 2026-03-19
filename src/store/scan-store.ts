@@ -19,8 +19,10 @@ export interface ScanStore {
 	unsupportedConstructs: readonly UnsupportedConstruct[];
 	parseFailures: readonly ParseFailure[];
 	error: string | null;
+	scanPath: string | null;
 
 	startScan: (scanId: string) => void;
+	setScanPath: (path: string) => void;
 	handleScanEvent: (event: ScanEvent) => void;
 	reset: () => void;
 }
@@ -34,6 +36,11 @@ export const useScanStore = create<ScanStore>()((set, get) => ({
 	unsupportedConstructs: [],
 	parseFailures: [],
 	error: null,
+	scanPath: null,
+
+	setScanPath: (path: string) => {
+		set({ scanPath: path });
+	},
 
 	startScan: (scanId: string) => {
 		set({
@@ -105,6 +112,7 @@ export const useScanStore = create<ScanStore>()((set, get) => ({
 			unsupportedConstructs: [],
 			parseFailures: [],
 			error: null,
+			scanPath: null,
 		});
 	},
 }));

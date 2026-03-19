@@ -2,7 +2,7 @@
  * Hook for managing Tauri scan lifecycle via Channel<ScanEvent>.
  *
  * Creates a Channel, dispatches events to both scan-store and graph-store,
- * and handles stale scan ID rejection.
+ * and handles stale scan ID rejection. Supports rescan with viewport preservation.
  */
 
 import { Channel, invoke } from "@tauri-apps/api/core";
@@ -14,14 +14,19 @@ import type { ScanEvent } from "@/types/scan";
 interface UseScanReturn {
 	startScan: (path: string) => Promise<void>;
 	cancelScan: () => Promise<void>;
+	rescan: (getViewport: () => { x: number; y: number; zoom: number }) => Promise<void>;
 }
 
 export function useScan(): UseScanReturn {
 	const scanIdRef = useRef<string | null>(null);
+	const savedExpandedIdsRef = useRef<Set<string> | null>(null);
 
 	const startScan = useCallback(async (_path: string): Promise<void> => {
 		const scanStore = useScanStore.getState();
 		const graphStore = useGraphStore.getState();
+
+		// Store the scan path for future rescan
+		scanStore.setScanPath(_path);
 
 		// Clear existing graph for a fresh scan
 		graphStore.clearGraph();
@@ -55,6 +60,12 @@ export function useScan(): UseScanReturn {
 			if (event.event === "overlay") {
 				useGraphStore.getState().applyOverlay(event.data.manualEdges, event.data.suppressedEdgeIds);
 			}
+
+			// On scan complete, restore expanded state if this is a rescan
+			if (event.event === "complete" && savedExpandedIdsRef.current) {
+				useGraphStore.getState().restoreExpandedState(savedExpandedIdsRef.current);
+				savedExpandedIdsRef.current = null;
+			}
 		};
 
 		try {
@@ -82,5 +93,22 @@ export function useScan(): UseScanReturn {
 		}
 	}, []);
 
-	return { startScan, cancelScan };
+	const rescan = useCallback(
+		async (getViewport: () => { x: number; y: number; zoom: number }): Promise<void> => {
+			const scanPath = useScanStore.getState().scanPath;
+			if (!scanPath) return;
+
+			const graphStore = useGraphStore.getState();
+
+			// Save state for restoration after rescan
+			const viewport = getViewport();
+			savedExpandedIdsRef.current = new Set(graphStore.expandedNodeIds);
+			graphStore.setPendingViewport(viewport);
+
+			await startScan(scanPath);
+		},
+		[startScan],
+	);
+
+	return { startScan, cancelScan, rescan };
 }

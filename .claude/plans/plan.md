@@ -565,7 +565,15 @@ Create a JSON fixture representing a small multi-package monorepo (~30 nodes) th
 #### M7: Interactive Features
 **Goal:** Node detail panel with category-aware edge display, search, edge filtering, rescan.
 
-- [ ] M7: Interactive Features — detail panel, Cmd+K search, edge category filtering, manual rescan
+- [x] M7: Interactive Features — detail panel, Cmd+K search, edge category filtering, manual rescan
+  - [x] Step 1 — Install shadcn/ui components (command, dialog, input, tabs) → verify: `pnpm typecheck`
+  - [x] Step 2 — Detail panel: sliding right panel with Overview/Dependencies/Health tabs, node selection → verify: `pnpm typecheck && pnpm biome check`
+  - [x] Step 3 — Command palette: Cmd+K fuzzy search over all nodes, expand-to-reveal, center viewport → verify: `pnpm typecheck && pnpm biome check`
+  - [x] Step 4 — Edge category filter bar + move suppressed toggle into unified toolbar → verify: `pnpm typecheck && pnpm biome check`
+  - [x] Step 5 — Manual rescan with viewport preservation + keyboard shortcuts → verify: `pnpm typecheck && pnpm biome check`
+  - [x] Step 6 — Tests: DetailPanel, CommandPalette, category filtering, rescan, keyboard shortcuts → verify: `pnpm test && cargo test --workspace`
+  - [x] Step 7 — Final verification → verify: `cargo clippy --workspace -- -D warnings && cargo test --workspace && pnpm typecheck && pnpm biome check && pnpm test`
+  Commit: "feat: interactive features — detail panel, search, filtering, rescan (M7)"
 
 **What to verify:**
 - Click node opens detail panel with tabs: Overview, Dependencies, Exports, Health

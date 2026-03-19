@@ -248,4 +248,98 @@ describe("useGraphStore", () => {
 		expect(state.projectedNodes.length).toBe(0);
 		expect(state.projectedEdges.length).toBe(0);
 	});
+
+	// M7: Category filtering tests
+	it("setCategoryFilter with empty set removes all edges", () => {
+		const { nodes, edges } = buildSmallGraph();
+		useGraphStore.getState().loadFixture(nodes, edges);
+
+		useGraphStore.getState().setCategoryFilter(new Set());
+
+		const state = useGraphStore.getState();
+		expect(state.projectedEdges).toHaveLength(0);
+	});
+
+	it("setCategoryFilter updates the store's filter set", () => {
+		const filterSet = new Set(["value", "dev"] as EdgeCategory[]);
+		useGraphStore.getState().setCategoryFilter(filterSet);
+
+		const state = useGraphStore.getState();
+		expect(state.categoryFilter.has("value")).toBe(true);
+		expect(state.categoryFilter.has("dev")).toBe(true);
+		expect(state.categoryFilter.has("build")).toBe(false);
+	});
+
+	it("toggling a category off and on preserves other filters", () => {
+		const { nodes } = buildSmallGraph();
+		const edges = [
+			makeEdge(nodes[2].id, nodes[3].id, "value"),
+			makeEdge(nodes[3].id, nodes[2].id, "dev"),
+		];
+		useGraphStore.getState().loadFixture(nodes, edges);
+
+		// Remove "value"
+		const filter1 = new Set([...useGraphStore.getState().categoryFilter]);
+		filter1.delete("value");
+		useGraphStore.getState().setCategoryFilter(filter1);
+
+		// "value" edge should be gone, "dev" edge should remain
+		const state1 = useGraphStore.getState();
+		const valueEdges = state1.projectedEdges.filter((e) => e.data.category === "value");
+		const devEdges = state1.projectedEdges.filter((e) => e.data.category === "dev");
+		expect(valueEdges).toHaveLength(0);
+		expect(devEdges).toHaveLength(1);
+
+		// Re-add "value"
+		filter1.add("value");
+		useGraphStore.getState().setCategoryFilter(filter1);
+
+		const state2 = useGraphStore.getState();
+		expect(state2.projectedEdges.filter((e) => e.data.category === "value")).toHaveLength(1);
+	});
+
+	// M7: Selection tests
+	it("selectNode and deselectNode work", () => {
+		useGraphStore.getState().selectNode("test-id");
+		expect(useGraphStore.getState().selectedNodeId).toBe("test-id");
+
+		useGraphStore.getState().deselectNode();
+		expect(useGraphStore.getState().selectedNodeId).toBeNull();
+	});
+
+	// M7: expandAncestorsOf
+	it("expandAncestorsOf expands all ancestors", () => {
+		const { nodes, edges } = buildSmallGraph();
+		useGraphStore.getState().loadFixture(nodes, edges);
+		useGraphStore.getState().collapseAll();
+
+		const fileId = nodes[2].id; // file1
+		useGraphStore.getState().expandAncestorsOf(fileId);
+
+		const expanded = useGraphStore.getState().expandedNodeIds;
+		expect(expanded.has(nodes[0].id)).toBe(true); // package
+		expect(expanded.has(nodes[1].id)).toBe(true); // module
+	});
+
+	// M7: restoreExpandedState
+	it("restoreExpandedState only restores valid IDs", () => {
+		const { nodes, edges } = buildSmallGraph();
+		useGraphStore.getState().loadFixture(nodes, edges);
+
+		const savedIds = new Set([nodes[0].id, "nonexistent-id"]);
+		useGraphStore.getState().restoreExpandedState(savedIds);
+
+		const expanded = useGraphStore.getState().expandedNodeIds;
+		expect(expanded.has(nodes[0].id)).toBe(true);
+		expect(expanded.has("nonexistent-id")).toBe(false);
+	});
+
+	// M7: pendingViewport
+	it("setPendingViewport stores and clears viewport", () => {
+		useGraphStore.getState().setPendingViewport({ x: 100, y: 200, zoom: 1.5 });
+		expect(useGraphStore.getState().pendingViewport).toEqual({ x: 100, y: 200, zoom: 1.5 });
+
+		useGraphStore.getState().setPendingViewport(null);
+		expect(useGraphStore.getState().pendingViewport).toBeNull();
+	});
 });
