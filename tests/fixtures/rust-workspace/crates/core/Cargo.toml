@@ -1,0 +1,11 @@
+[package]
+name = "fixture-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+
+[features]
+default = []
+serde-support = ["serde/derive"]

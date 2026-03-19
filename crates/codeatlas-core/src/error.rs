@@ -13,4 +13,7 @@ pub enum CoreError {
 
     #[error("detector error: {0}")]
     Detector(#[from] crate::detector::DetectorError),
+
+    #[error("workspace error: {0}")]
+    Workspace(#[from] crate::workspace::WorkspaceError),
 }

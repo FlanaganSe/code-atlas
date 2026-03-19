@@ -4,6 +4,7 @@
 //! the discovered graph with manual edges, suppressions, ignore paths,
 //! entrypoints, and metadata.
 
+use camino::Utf8Path;
 use serde::{Deserialize, Serialize};
 
 /// Root configuration from `.codeatlas.yaml`.
@@ -55,6 +56,19 @@ impl RepoConfig {
         }
     }
 
+    /// Load `.codeatlas.yaml` from a directory.
+    ///
+    /// If the file doesn't exist, returns a default config.
+    /// If the file exists but is invalid, returns an error.
+    pub fn load_from_dir(dir: &Utf8Path) -> Result<Self, super::ConfigError> {
+        let config_path = dir.join(".codeatlas.yaml");
+        if !config_path.exists() {
+            return Ok(Self::default_config());
+        }
+        let contents = std::fs::read_to_string(config_path.as_std_path())?;
+        Self::parse(&contents)
+    }
+
     /// Parse and validate a `.codeatlas.yaml` string.
     pub fn parse(yaml: &str) -> Result<Self, super::ConfigError> {
         let config: Self =
@@ -65,6 +79,30 @@ impl RepoConfig {
         Ok(config)
     }
 
+    /// Build a [`globset::GlobSet`] from the ignore patterns.
+    ///
+    /// Returns `None` if there are no ignore patterns. The returned
+    /// set can be used by file walkers to skip ignored paths.
+    pub fn ignore_glob_set(&self) -> Option<globset::GlobSet> {
+        if self.ignore.is_empty() {
+            return None;
+        }
+        let mut builder = globset::GlobSetBuilder::new();
+        for pattern in &self.ignore {
+            if let Ok(glob) = globset::Glob::new(pattern) {
+                builder.add(glob);
+            }
+        }
+        builder.build().ok()
+    }
+
+    /// Check if a path should be ignored based on the config's ignore patterns.
+    pub fn is_ignored(&self, path: &str) -> bool {
+        self.ignore_glob_set()
+            .map(|gs| gs.is_match(path))
+            .unwrap_or(false)
+    }
+
     /// Validate the config after parsing.
     fn validate(&self) -> Result<(), super::ConfigError> {
         if self.version != 1 {
@@ -73,6 +111,25 @@ impl RepoConfig {
             });
         }
         Ok(())
+    }
+
+    /// Summary of which config sections are recognized but not yet
+    /// functional in the POC.
+    pub fn non_functional_sections(&self) -> Vec<&'static str> {
+        let mut sections = Vec::new();
+        if !self.dependencies.add.is_empty() || !self.dependencies.suppress.is_empty() {
+            sections.push("dependencies (manual edges and suppressions)");
+        }
+        if !self.packages.is_empty() {
+            sections.push("packages (per-package metadata)");
+        }
+        if !self.frameworks.is_empty() {
+            sections.push("frameworks (detector hints)");
+        }
+        if !self.declarations.is_empty() {
+            sections.push("declarations (unsupported construct annotations)");
+        }
+        sections
     }
 }
 
@@ -234,6 +291,52 @@ declarations:
     fn default_config_is_valid() {
         let config = RepoConfig::default_config();
         assert_eq!(config.version, 1);
+    }
+
+    #[test]
+    fn load_from_dir_missing_file_returns_default() {
+        let config = RepoConfig::load_from_dir(Utf8Path::new("/tmp"))
+            .expect("should return default config");
+        assert_eq!(config.version, 1);
+        assert!(config.ignore.is_empty());
+    }
+
+    #[test]
+    fn ignore_pattern_matching() {
+        let config = RepoConfig {
+            version: 1,
+            ignore: vec!["dist/**".to_string(), "node_modules/**".to_string()],
+            ..RepoConfig::default_config()
+        };
+
+        assert!(config.is_ignored("dist/index.js"));
+        assert!(config.is_ignored("node_modules/foo/bar.js"));
+        assert!(!config.is_ignored("src/main.ts"));
+    }
+
+    #[test]
+    fn ignore_glob_set_empty_patterns() {
+        let config = RepoConfig::default_config();
+        assert!(config.ignore_glob_set().is_none());
+    }
+
+    #[test]
+    fn non_functional_sections_detected() {
+        let yaml = r#"
+version: 1
+dependencies:
+  add:
+    - from: "a"
+      to: "b"
+      reason: "test"
+packages:
+  "my-pkg":
+    tags: [api]
+"#;
+        let config = RepoConfig::parse(yaml).unwrap();
+        let sections = config.non_functional_sections();
+        assert!(sections.contains(&"dependencies (manual edges and suppressions)"));
+        assert!(sections.contains(&"packages (per-package metadata)"));
     }
 
     #[test]

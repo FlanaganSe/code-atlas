@@ -8,11 +8,17 @@
 //! 1. `compatibility()` — assess what this detector can/cannot analyze (fast, no parsing).
 //! 2. `detect()` — discover nodes and edges, streaming results through `DetectorSink`.
 
+pub mod rust;
+pub mod typescript;
+
 use crate::config::RepoConfig;
 use crate::graph::types::{EdgeData, Language, NodeData, ParseFailure, UnsupportedConstruct};
 use crate::health::compatibility::{CompatibilityDetail, SupportStatus};
 use crate::profile::GraphProfile;
 use crate::workspace::WorkspaceInfo;
+
+pub use rust::RustDetector;
+pub use typescript::TypeScriptDetector;
 
 /// Errors that can occur during detection.
 #[derive(Debug, thiserror::Error)]

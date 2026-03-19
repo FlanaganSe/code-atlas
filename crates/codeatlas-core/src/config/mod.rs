@@ -1,4 +1,8 @@
 //! Configuration parsing and validation for `.codeatlas.yaml`.
+//!
+//! Note on serde_yaml: serde_yaml 0.9 is deprecated upstream but still
+//! functional and battle-tested. For the POC we use it as-is; migration
+//! to serde_yml or another format can happen in a later milestone if needed.
 
 pub mod schema;
 
@@ -12,4 +16,7 @@ pub enum ConfigError {
 
     #[error("unsupported config version: {version} (expected 1)")]
     UnsupportedVersion { version: u32 },
+
+    #[error("I/O error reading config: {0}")]
+    Io(#[from] std::io::Error),
 }

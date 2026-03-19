@@ -1,0 +1,9 @@
+[package]
+name = "fixture-cli"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+fixture-core = { path = "../core" }
+
+[build-dependencies]

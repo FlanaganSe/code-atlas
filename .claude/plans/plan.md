@@ -350,7 +350,13 @@ The PRD (§10) and research-strategy (§2.1) conflict on `MaterializedKey` forma
 #### M2: Workspace Discovery + Compatibility Report
 **Goal:** Point at a directory, discover workspace structure, generate a compatibility report. No graph rendering yet — just core logic + display.
 
-- [ ] M2: Workspace Discovery + Compatibility — discover Cargo/JS workspaces, generate compatibility report, display in UI
+- [x] M2: Workspace Discovery + Compatibility — discover Cargo/JS workspaces, generate compatibility report, display in UI
+  - [x] Step 1 — Add deps + workspace discovery types + cargo/JS discovery implementation → verify: `cargo test -p codeatlas-core`
+  - [x] Step 2 — Config loading from filesystem + profile detection + detector compatibility + AnalysisHost/Analysis → verify: `cargo test --workspace`
+  - [x] Step 3 — Tauri commands (open_directory, discover_workspace) with spawn_blocking → verify: `cargo check -p codeatlas-tauri`
+  - [x] Step 4 — Frontend UI (TS types, Open Directory, compatibility report, profile badge) → verify: `pnpm typecheck && pnpm biome check`
+  - [x] Step 5 — Full verification + test fixtures → verify: `cargo clippy --workspace -- -D warnings && cargo test --workspace && pnpm typecheck && pnpm biome check`
+  Commit: "feat: workspace discovery, compatibility report, and profile detection (M2)"
 
 **What to verify:**
 - `cargo_metadata` correctly discovers this project's Cargo workspace
@@ -690,7 +696,7 @@ Not applicable for POC — no existing data, users, or APIs to migrate. The POC 
 
 **High priority — affect architecture:**
 
-1. **ELK EPL-2.0 license:** ELK.js uses the Eclipse Public License 2.0. This is a weak copyleft license — modifications to ELK itself (not your code) may need disclosure. Is this acceptable for the planned MIT distribution model? If not, the only alternative is a custom layout engine or a significantly less capable library. This must be decided before M3.
+1. **ELK EPL-2.0 license:** ELK.js uses the Eclipse Public License 2.0. This is a weak copyleft license — modifications to ELK itself (not your code) may need disclosure. Is this acceptable for the planned MIT distribution model? If not, the only alternative is a custom layout engine or a significantly less capable library. This must be decided before M3. Yes this is fine. 
 
 2. **No-code-execution guarantee:** Research-strategy §2.1 recommends adding an explicit constraint: "No code execution during analysis (no build.rs, proc macros, package scripts, bundlers)." Should this be added to the PRD as a formal constraint and documented in the compatibility report? This affects how we communicate limits to users.
 
