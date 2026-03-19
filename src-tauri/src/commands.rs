@@ -21,44 +21,60 @@ use crate::AppState;
 // ---------------------------------------------------------------------------
 
 /// Events streamed to the frontend during a scan via `Channel<ScanEvent>`.
+///
+/// NOTE: `rename_all = "camelCase"` on the enum only renames variant **tags**
+/// (e.g., `CompatibilityReport` → `"compatibilityReport"`). It does NOT rename
+/// fields inside struct variants. Multi-word fields need explicit `#[serde(rename)]`.
 #[derive(Clone, Serialize)]
 #[serde(tag = "event", content = "data", rename_all = "camelCase")]
 pub enum ScanEvent {
     CompatibilityReport {
+        #[serde(rename = "scanId")]
         scan_id: String,
         report: CompatibilityReport,
     },
     Phase {
+        #[serde(rename = "scanId")]
         scan_id: String,
         phase: ScanPhase,
         nodes: Vec<NodeData>,
         edges: Vec<EdgeData>,
     },
     Health {
+        #[serde(rename = "scanId")]
         scan_id: String,
         health: GraphHealth,
     },
     Progress {
+        #[serde(rename = "scanId")]
         scan_id: String,
         scanned: usize,
         total: usize,
     },
     /// Detailed scan findings: unsupported constructs and parse failures.
     Details {
+        #[serde(rename = "scanId")]
         scan_id: String,
+        #[serde(rename = "unsupportedConstructs")]
         unsupported_constructs: Vec<UnsupportedConstruct>,
+        #[serde(rename = "parseFailures")]
         parse_failures: Vec<ParseFailure>,
     },
     /// Overlay data: manual edges from config and suppressed edge IDs.
     Overlay {
+        #[serde(rename = "scanId")]
         scan_id: String,
+        #[serde(rename = "manualEdges")]
         manual_edges: Vec<EdgeData>,
+        #[serde(rename = "suppressedEdgeIds")]
         suppressed_edge_ids: Vec<String>,
     },
     Complete {
+        #[serde(rename = "scanId")]
         scan_id: String,
     },
     Error {
+        #[serde(rename = "scanId")]
         scan_id: String,
         message: String,
     },
@@ -286,4 +302,42 @@ pub async fn cancel_scan(state: State<'_, AppState>) -> Result<(), String> {
         token.cancel();
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scan_event_details_json_shape() {
+        let event = ScanEvent::Details {
+            scan_id: "test-123".to_string(),
+            unsupported_constructs: vec![],
+            parse_failures: vec![],
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        // Check the JSON shape matches what the frontend expects
+        assert_eq!(value["event"], "details");
+        let data = &value["data"];
+        assert!(data.get("scanId").is_some(), "expected scanId, got: {data}");
+        assert!(data.get("unsupportedConstructs").is_some(), "expected unsupportedConstructs, got: {data}");
+        assert!(data.get("parseFailures").is_some(), "expected parseFailures, got: {data}");
+    }
+
+    #[test]
+    fn scan_event_overlay_json_shape() {
+        let event = ScanEvent::Overlay {
+            scan_id: "test-123".to_string(),
+            manual_edges: vec![],
+            suppressed_edge_ids: vec![],
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(value["event"], "overlay");
+        let data = &value["data"];
+        assert!(data.get("scanId").is_some(), "expected scanId, got: {data}");
+        assert!(data.get("manualEdges").is_some(), "expected manualEdges, got: {data}");
+        assert!(data.get("suppressedEdgeIds").is_some(), "expected suppressedEdgeIds, got: {data}");
+    }
 }
