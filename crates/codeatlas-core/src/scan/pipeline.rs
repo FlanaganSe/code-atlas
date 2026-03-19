@@ -6,7 +6,11 @@ use tokio_util::sync::CancellationToken;
 
 use crate::config::RepoConfig;
 use crate::detector::{Detector, DetectorSink};
-use crate::graph::types::{EdgeData, NodeData};
+use crate::graph::identity::{EdgeId, MaterializedKey};
+use crate::graph::overlay::SuppressionReason;
+use crate::graph::types::{
+    Confidence, EdgeCategory, EdgeData, EdgeKind, NodeData, OverlayStatus,
+};
 use crate::graph::ArchGraph;
 use crate::health::compatibility::{CompatibilityDetail, CompatibilityReport};
 use crate::health::graph_health::GraphHealth;
@@ -187,6 +191,10 @@ pub fn run_scan(
         graph.add_edge(edge.clone())?;
     }
 
+    // Apply overlay from config
+    let (manual_edge_data, suppressed_edge_ids) =
+        apply_overlay_from_config(config, &mut graph);
+
     // Compute health metrics
     let health = GraphHealth {
         total_nodes: graph.node_count(),
@@ -196,6 +204,15 @@ pub fn run_scan(
         unsupported_constructs: all_results.unsupported_constructs.len(),
     };
     sink.on_health(health.clone());
+
+    // Send detailed findings (unsupported constructs + parse failures)
+    sink.on_details(
+        all_results.unsupported_constructs.clone(),
+        all_results.parse_failures.clone(),
+    );
+
+    // Send overlay data (manual edges + suppressed edge IDs)
+    sink.on_overlay(manual_edge_data, suppressed_edge_ids);
 
     // Enrich compatibility report
     let mut enriched_report = CompatibilityReport {
@@ -255,6 +272,114 @@ pub fn run_scan(
     all_results.edges = all_edges;
 
     Ok(all_results)
+}
+
+/// Apply overlay configuration to the graph.
+///
+/// Translates `dependencies.add` from config into manual `EdgeData` entries
+/// and `dependencies.suppress` into suppression entries on the overlay.
+/// Returns the manual edges as EdgeData (for streaming to frontend) and
+/// the list of suppressed edge IDs.
+fn apply_overlay_from_config(
+    config: &RepoConfig,
+    graph: &mut ArchGraph,
+) -> (Vec<EdgeData>, Vec<String>) {
+    let mut manual_edge_data: Vec<EdgeData> = Vec::new();
+    let mut suppressed_edge_ids: Vec<String> = Vec::new();
+
+    // Apply manual edges from config.dependencies.add
+    for manual in &config.dependencies.add {
+        // Find matching source and target nodes by relative path prefix.
+        // The config uses package-level paths (e.g., "packages/app"),
+        // so we match against Package nodes whose path starts with the from/to value.
+        let source_key = find_node_by_path(graph, &manual.from);
+        let target_key = find_node_by_path(graph, &manual.to);
+
+        if let (Some(source), Some(target)) = (source_key, target_key) {
+            let edge_id = EdgeId::new(&source, &target, EdgeKind::Manual, EdgeCategory::Manual);
+
+            let edge_data = EdgeData {
+                edge_id: edge_id.clone(),
+                source_key: source,
+                target_key: target,
+                kind: EdgeKind::Manual,
+                category: EdgeCategory::Manual,
+                confidence: Confidence::Structural,
+                source_location: None,
+                resolution_method: Some("manual config".to_string()),
+                overlay_status: OverlayStatus::None,
+            };
+
+            manual_edge_data.push(edge_data);
+
+            // Add to overlay's manual edges
+            graph.overlay_mut().manual_edges.push(
+                crate::graph::overlay::ManualEdge {
+                    from: manual.from.clone(),
+                    to: manual.to.clone(),
+                    reason: manual.reason.clone(),
+                },
+            );
+        }
+    }
+
+    // Apply suppressions from config.dependencies.suppress
+    for suppression in &config.dependencies.suppress {
+        // Find matching discovered edges: edges whose source path contains
+        // the suppression's `from` and target path contains `to`.
+        let matching_edge_ids: Vec<EdgeId> = graph
+            .edges()
+            .filter(|e| {
+                e.source_key.relative_path.starts_with(&suppression.from)
+                    && e.target_key.relative_path.starts_with(&suppression.to)
+            })
+            .map(|e| e.edge_id.clone())
+            .collect();
+
+        for edge_id in matching_edge_ids {
+            suppressed_edge_ids.push(edge_id.0.clone());
+            graph.overlay_mut().suppressions.insert(
+                edge_id,
+                SuppressionReason {
+                    reason: suppression.reason.clone(),
+                },
+            );
+        }
+    }
+
+    (manual_edge_data, suppressed_edge_ids)
+}
+
+/// Find a graph node whose relative path matches or starts with the given path.
+/// Prefers exact match on Package nodes, then prefix match.
+fn find_node_by_path(graph: &ArchGraph, path: &str) -> Option<MaterializedKey> {
+    let normalized = crate::graph::normalize_path(path);
+
+    // First try exact match on packages
+    for node in graph.nodes() {
+        if node.kind == crate::graph::types::NodeKind::Package
+            && node.materialized_key.relative_path == normalized
+        {
+            return Some(node.materialized_key.clone());
+        }
+    }
+
+    // Then try prefix match on any node
+    for node in graph.nodes() {
+        if node.materialized_key.relative_path == normalized {
+            return Some(node.materialized_key.clone());
+        }
+    }
+
+    // Finally, try path-prefix match (with separator boundary)
+    let prefix_with_sep = format!("{normalized}/");
+    for node in graph.nodes() {
+        if node.materialized_key.relative_path.starts_with(&prefix_with_sep) {
+            return Some(node.materialized_key.clone());
+        }
+    }
+
+    None
 }
 
 /// Internal sink that collects nodes and edges from detectors.
@@ -421,6 +546,45 @@ mod tests {
         assert!(!compat.expect("compat").is_provisional);
     }
 
+    #[test]
+    fn scan_pipeline_streams_overlay_data() {
+        let project_root = camino::Utf8Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(|p| p.parent())
+            .expect("should find project root");
+
+        let workspace =
+            crate::workspace::discover_workspace(project_root).expect("discovery should succeed");
+        let config = RepoConfig::load_from_dir(&workspace.root)
+            .unwrap_or_else(|_| RepoConfig::default_config());
+        let profile = GraphProfile::detect_from_workspace(&workspace);
+        let detectors: Vec<Box<dyn Detector>> = vec![
+            Box::new(RustDetector),
+            Box::new(TypeScriptDetector),
+        ];
+        let cancel = CancellationToken::new();
+
+        let collecting_sink = CollectingScanSink::default();
+        let _results =
+            run_scan(&workspace, &profile, &config, &detectors, &collecting_sink, &cancel)
+                .expect("scan should succeed");
+
+        // Overlay event should have been sent (even if empty for this project)
+        let overlay = collecting_sink.overlay();
+        assert!(overlay.is_some(), "overlay event should be sent");
+
+        let (manual_edges, suppressed_ids) = overlay.expect("overlay");
+        // This project has no .codeatlas.yaml with add/suppress, so both should be empty
+        assert!(
+            manual_edges.is_empty(),
+            "no manual edges expected without .codeatlas.yaml config"
+        );
+        assert!(
+            suppressed_ids.is_empty(),
+            "no suppressions expected without .codeatlas.yaml config"
+        );
+    }
+
     /// Collecting sink for testing scan pipeline output.
     #[derive(Default)]
     struct CollectingScanSink {
@@ -428,6 +592,13 @@ mod tests {
         health: std::sync::Mutex<Option<GraphHealth>>,
         compatibility: std::sync::Mutex<Option<CompatibilityReport>>,
         progress: std::sync::Mutex<Vec<(usize, usize)>>,
+        details: std::sync::Mutex<
+            Option<(
+                Vec<crate::graph::types::UnsupportedConstruct>,
+                Vec<crate::graph::types::ParseFailure>,
+            )>,
+        >,
+        overlay: std::sync::Mutex<Option<(Vec<EdgeData>, Vec<String>)>>,
     }
 
     impl CollectingScanSink {
@@ -439,6 +610,9 @@ mod tests {
         }
         fn compatibility(&self) -> Option<CompatibilityReport> {
             self.compatibility.lock().expect("lock").clone()
+        }
+        fn overlay(&self) -> Option<(Vec<EdgeData>, Vec<String>)> {
+            self.overlay.lock().expect("lock").clone()
         }
     }
 
@@ -454,6 +628,17 @@ mod tests {
         }
         fn on_progress(&self, scanned: usize, total: usize) {
             self.progress.lock().expect("lock").push((scanned, total));
+        }
+        fn on_details(
+            &self,
+            unsupported_constructs: Vec<crate::graph::types::UnsupportedConstruct>,
+            parse_failures: Vec<crate::graph::types::ParseFailure>,
+        ) {
+            *self.details.lock().expect("lock") =
+                Some((unsupported_constructs, parse_failures));
+        }
+        fn on_overlay(&self, manual_edges: Vec<EdgeData>, suppressed_edge_ids: Vec<String>) {
+            *self.overlay.lock().expect("lock") = Some((manual_edges, suppressed_edge_ids));
         }
     }
 }

@@ -7,7 +7,14 @@
  * This is the single source of truth for what React Flow renders.
  */
 
-import type { EdgeCategory, MaterializedKey, NodeKind } from "@/types/graph";
+import type {
+	Confidence,
+	EdgeCategory,
+	EdgeKind,
+	MaterializedKey,
+	NodeKind,
+	SourceLocation,
+} from "@/types/graph";
 
 // ---------------------------------------------------------------------------
 // AppNode / AppEdge — React Flow compatible types
@@ -36,13 +43,17 @@ export interface AppNode {
 
 export interface AppEdgeData {
 	readonly category: EdgeCategory;
+	readonly kind: EdgeKind;
 	readonly isManual: boolean;
 	readonly isSuppressed: boolean;
 	readonly isBundled: boolean;
 	readonly bundledEdgeIds: readonly string[];
 	readonly bundledCount: number;
-	readonly confidence: string;
+	readonly confidence: Confidence;
 	readonly edgeId: string;
+	readonly sourceLocation: SourceLocation | null;
+	readonly resolutionMethod: string | null;
+	readonly suppressionReason: string | null;
 }
 
 export interface AppEdge {
@@ -333,6 +344,7 @@ export function project(input: ProjectionInput): ProjectionResult {
 			type: "dependency",
 			data: {
 				category,
+				kind: "imports",
 				isManual: false,
 				isSuppressed: false,
 				isBundled: true,
@@ -340,6 +352,9 @@ export function project(input: ProjectionInput): ProjectionResult {
 				bundledCount: bundle.edgeIds.length,
 				confidence: "structural",
 				edgeId: bundleKey,
+				sourceLocation: null,
+				resolutionMethod: null,
+				suppressionReason: null,
 			},
 		});
 	}

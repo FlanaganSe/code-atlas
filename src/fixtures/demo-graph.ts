@@ -13,7 +13,7 @@
 
 import type { AppEdge, AppNode } from "@/store/graph-projection";
 import { keyToId } from "@/store/graph-projection";
-import type { EdgeCategory } from "@/types/graph";
+import type { Confidence, EdgeCategory } from "@/types/graph";
 
 // ---------------------------------------------------------------------------
 // Helper to create MaterializedKey
@@ -116,7 +116,7 @@ function depEdge(
 	sourceId: string,
 	targetId: string,
 	category: EdgeCategory,
-	confidence = "syntactic",
+	confidence: Confidence = "syntactic",
 ): AppEdge {
 	const id = edgeId(sourceId, targetId, category);
 	return {
@@ -126,6 +126,7 @@ function depEdge(
 		type: "dependency",
 		data: {
 			category,
+			kind: "imports" as const,
 			isManual: false,
 			isSuppressed: false,
 			isBundled: false,
@@ -133,6 +134,9 @@ function depEdge(
 			bundledCount: 0,
 			confidence,
 			edgeId: id,
+			sourceLocation: null,
+			resolutionMethod: null,
+			suppressionReason: null,
 		},
 	};
 }
@@ -401,6 +405,7 @@ export const fixtureOverlayEdges: AppEdge[] = [
 		type: "dependency",
 		data: {
 			category: "manual",
+			kind: "manual",
 			isManual: true,
 			isSuppressed: false,
 			isBundled: false,
@@ -408,6 +413,9 @@ export const fixtureOverlayEdges: AppEdge[] = [
 			bundledCount: 0,
 			confidence: "structural",
 			edgeId: manualEdgeId,
+			sourceLocation: null,
+			resolutionMethod: "manual config",
+			suppressionReason: null,
 		},
 	},
 ];

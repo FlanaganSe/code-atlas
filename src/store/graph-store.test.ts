@@ -42,6 +42,7 @@ function makeEdge(sourceId: string, targetId: string, category: EdgeCategory = "
 		type: "dependency",
 		data: {
 			category,
+			kind: "imports",
 			isManual: false,
 			isSuppressed: false,
 			isBundled: false,
@@ -49,6 +50,9 @@ function makeEdge(sourceId: string, targetId: string, category: EdgeCategory = "
 			bundledCount: 0,
 			confidence: "syntactic",
 			edgeId: id,
+			sourceLocation: null,
+			resolutionMethod: null,
+			suppressionReason: null,
 		},
 	};
 }

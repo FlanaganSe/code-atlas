@@ -115,11 +115,10 @@ impl RepoConfig {
 
     /// Summary of which config sections are recognized but not yet
     /// functional in the POC.
+    ///
+    /// Note: `dependencies` (manual edges and suppressions) became functional in M6.
     pub fn non_functional_sections(&self) -> Vec<&'static str> {
         let mut sections = Vec::new();
-        if !self.dependencies.add.is_empty() || !self.dependencies.suppress.is_empty() {
-            sections.push("dependencies (manual edges and suppressions)");
-        }
         if !self.packages.is_empty() {
             sections.push("packages (per-package metadata)");
         }
@@ -335,7 +334,8 @@ packages:
 "#;
         let config = RepoConfig::parse(yaml).unwrap();
         let sections = config.non_functional_sections();
-        assert!(sections.contains(&"dependencies (manual edges and suppressions)"));
+        // dependencies are now functional (M6)
+        assert!(!sections.contains(&"dependencies (manual edges and suppressions)"));
         assert!(sections.contains(&"packages (per-package metadata)"));
     }
 

@@ -541,7 +541,13 @@ Create a JSON fixture representing a small multi-package monorepo (~30 nodes) th
 #### M6: Graph Health + Provenance + Config UI
 **Goal:** Surface the health/provenance/overlay data that M1–M5 already produce. The data model and enforcement were built in M1 (types, overlay immutability), config parsing in M2, and edge evidence in M4/M5. This milestone adds the **UI surfaces** and makes overlay operations functional end-to-end.
 
-- [ ] M6: Graph Health + Provenance + Config UI — health display, edge evidence, unsupported badges, overlay operations
+- [x] M6: Graph Health + Provenance + Config UI — health display, edge evidence, unsupported badges, overlay operations
+  - [x] Step 1 — Backend: Apply overlay from config, stream details (unsupported constructs, parse failures, overlay edges, suppressed IDs) to frontend → verify: `cargo test --workspace && cargo clippy --workspace -- -D warnings`
+  - [x] Step 2 — Frontend: Install shadcn/ui components, extend stores + types for new events → verify: `pnpm typecheck`
+  - [x] Step 3 — Frontend: Build HealthIndicator, EdgeProvenance popover, CompatibilityPanel, ProfileBadge components → verify: `pnpm typecheck && pnpm biome check`
+  - [x] Step 4 — Frontend: Wire panels into App.tsx layout + GraphCanvas edge click → verify: `pnpm typecheck && pnpm biome check`
+  - [x] Step 5 — Tests: Vitest (health, provenance, overlay projection, scan store) + Rust (overlay application, immutability) → verify: `cargo test --workspace && pnpm test && cargo clippy --workspace -- -D warnings && pnpm biome check`
+  Commit: "feat: Graph Health + Provenance + Config UI (M6)"
 
 **What to verify:**
 - Health indicator shows: total nodes, resolved edges, unresolved imports, parse failures, unsupported constructs

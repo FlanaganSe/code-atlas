@@ -1,6 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useState } from "react";
 import { GraphCanvas } from "./components/graph/GraphCanvas";
+import { CompatibilityPanel } from "./components/panels/CompatibilityPanel";
+import { HealthIndicator } from "./components/panels/HealthIndicator";
+import { ProfileBadge } from "./components/panels/ProfileBadge";
 import {
 	fixtureEdges,
 	fixtureNodes,
@@ -13,6 +16,7 @@ import { useScanStore } from "./store/scan-store";
 import type {
 	CompatibilityAssessment,
 	CompatibilityDetail,
+	CompatibilityReport,
 	DiscoveryResult,
 	SupportStatus,
 } from "./types/config";
@@ -25,6 +29,7 @@ type AppState =
 
 export function App(): React.JSX.Element {
 	const [state, setState] = useState<AppState>({ status: "idle" });
+	const [compatPanelOpen, setCompatPanelOpen] = useState(false);
 	const loadFixture = useGraphStore((s) => s.loadFixture);
 	const hasGraph = useGraphStore((s) => s.discoveredNodes.length > 0);
 	const expandAll = useGraphStore((s) => s.expandAll);
@@ -34,7 +39,13 @@ export function App(): React.JSX.Element {
 
 	const scanStatus = useScanStore((s) => s.scanStatus);
 	const scanProgress = useScanStore((s) => s.progress);
+	const scanCompatReport = useScanStore((s) => s.compatibilityReport);
 	const { startScan, cancelScan } = useScan();
+
+	// Use the enriched (post-scan) compatibility report if available, else discovery report
+	const discoveryResult = state.status === "discovered" ? state.result : null;
+	const activeCompatReport: CompatibilityReport | null =
+		scanCompatReport ?? discoveryResult?.compatibility ?? null;
 
 	async function handleOpenDirectory(): Promise<void> {
 		setState({ status: "discovering" });
@@ -70,7 +81,16 @@ export function App(): React.JSX.Element {
 	return (
 		<main className="flex h-screen flex-col bg-neutral-950 text-neutral-100">
 			<header className="flex shrink-0 items-center justify-between border-b border-neutral-800 px-6 py-3">
-				<h1 className="text-xl font-semibold">Code Atlas</h1>
+				<div className="flex items-center gap-3">
+					<h1 className="text-xl font-semibold">Code Atlas</h1>
+					{/* Profile badge in header when graph is showing */}
+					{hasGraph && discoveryResult && (
+						<ProfileBadge
+							result={discoveryResult}
+							onOpenCompatibility={() => setCompatPanelOpen(true)}
+						/>
+					)}
+				</div>
 				<div className="flex items-center gap-3">
 					{isScanning && scanProgress && (
 						<span className="text-xs text-neutral-400">
@@ -142,6 +162,9 @@ export function App(): React.JSX.Element {
 				</div>
 			</header>
 
+			{/* Health indicator bar — shown in graph view */}
+			{hasGraph && <HealthIndicator />}
+
 			<div className="flex min-h-0 flex-1">
 				{hasGraph ? (
 					<div className="flex-1">
@@ -156,9 +179,22 @@ export function App(): React.JSX.Element {
 					</div>
 				)}
 			</div>
+
+			{/* Compatibility report panel (sheet) */}
+			{activeCompatReport && (
+				<CompatibilityPanel
+					report={activeCompatReport}
+					open={compatPanelOpen}
+					onOpenChange={setCompatPanelOpen}
+				/>
+			)}
 		</main>
 	);
 }
+
+// ---------------------------------------------------------------------------
+// Pre-scan discovery views (inline — kept from M2)
+// ---------------------------------------------------------------------------
 
 function IdleView(): React.JSX.Element {
 	return (
@@ -195,8 +231,8 @@ function ErrorView({ message }: { message: string }): React.JSX.Element {
 function DiscoveredView({ result }: { result: DiscoveryResult }): React.JSX.Element {
 	return (
 		<div className="mx-auto grid max-w-5xl gap-6">
-			<ProfileBadge result={result} />
-			<CompatibilityReportPanel result={result} />
+			<InlineProfileBadge result={result} />
+			<InlineCompatibilityPanel result={result} />
 			{result.workspace.packages.length > 0 && <WorkspacePackages result={result} />}
 			{result.nonFunctionalConfigSections.length > 0 && (
 				<ConfigNotes sections={result.nonFunctionalConfigSections} />
@@ -205,7 +241,7 @@ function DiscoveredView({ result }: { result: DiscoveryResult }): React.JSX.Elem
 	);
 }
 
-function ProfileBadge({ result }: { result: DiscoveryResult }): React.JSX.Element {
+function InlineProfileBadge({ result }: { result: DiscoveryResult }): React.JSX.Element {
 	const { profile, workspace } = result;
 
 	return (
@@ -245,7 +281,7 @@ function ProfileBadge({ result }: { result: DiscoveryResult }): React.JSX.Elemen
 	);
 }
 
-function CompatibilityReportPanel({ result }: { result: DiscoveryResult }): React.JSX.Element {
+function InlineCompatibilityPanel({ result }: { result: DiscoveryResult }): React.JSX.Element {
 	const { compatibility } = result;
 
 	return (

@@ -50,6 +50,11 @@ export function useScan(): UseScanReturn {
 					.getState()
 					.applyScanPhase(event.data.phase, event.data.nodes, event.data.edges);
 			}
+
+			// Dispatch overlay events to graph store
+			if (event.event === "overlay") {
+				useGraphStore.getState().applyOverlay(event.data.manualEdges, event.data.suppressedEdgeIds);
+			}
 		};
 
 		try {

@@ -6,7 +6,7 @@
  */
 
 import type { CompatibilityReport, GraphHealth } from "./config";
-import type { EdgeData, NodeData } from "./graph";
+import type { EdgeData, NodeData, ParseFailure, UnsupportedConstruct } from "./graph";
 
 // ---------------------------------------------------------------------------
 // ScanPhase
@@ -61,6 +61,22 @@ export type ScanEvent =
 			readonly event: "complete";
 			readonly data: {
 				readonly scanId: string;
+			};
+	  }
+	| {
+			readonly event: "details";
+			readonly data: {
+				readonly scanId: string;
+				readonly unsupportedConstructs: readonly UnsupportedConstruct[];
+				readonly parseFailures: readonly ParseFailure[];
+			};
+	  }
+	| {
+			readonly event: "overlay";
+			readonly data: {
+				readonly scanId: string;
+				readonly manualEdges: readonly EdgeData[];
+				readonly suppressedEdgeIds: readonly string[];
 			};
 	  }
 	| {

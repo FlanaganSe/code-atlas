@@ -1,8 +1,18 @@
-import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider } from "@xyflow/react";
+import {
+	Background,
+	Controls,
+	type EdgeMouseHandler,
+	MiniMap,
+	ReactFlow,
+	ReactFlowProvider,
+} from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { useCallback, useState } from "react";
 
 import { useLayout } from "@/hooks/use-layout";
+import type { AppEdgeData } from "@/store/graph-projection";
 import { useGraphStore } from "@/store/graph-store";
+import { EdgeProvenancePopover } from "../panels/EdgeProvenance";
 import { DependencyEdge } from "./edges/DependencyEdge";
 import { FileNode } from "./nodes/FileNode";
 import { ModuleNode } from "./nodes/ModuleNode";
@@ -25,7 +35,23 @@ function GraphCanvasInner(): React.JSX.Element {
 	const onNodesChange = useGraphStore((s) => s.onNodesChange);
 	const onEdgesChange = useGraphStore((s) => s.onEdgesChange);
 
+	// Edge provenance popover state
+	const [provenancePos, setProvenancePos] = useState<{ x: number; y: number } | null>(null);
+	const [provenanceData, setProvenanceData] = useState<AppEdgeData | null>(null);
+
 	useLayout();
+
+	const handleEdgeClick: EdgeMouseHandler = useCallback((event, edge) => {
+		const data = edge.data as AppEdgeData | undefined;
+		if (!data) return;
+		setProvenancePos({ x: event.clientX, y: event.clientY });
+		setProvenanceData(data);
+	}, []);
+
+	const handleCloseProvenance = useCallback(() => {
+		setProvenancePos(null);
+		setProvenanceData(null);
+	}, []);
 
 	return (
 		<div className="h-full w-full">
@@ -34,6 +60,8 @@ function GraphCanvasInner(): React.JSX.Element {
 				edges={edges as unknown as Parameters<typeof ReactFlow>[0]["edges"]}
 				onNodesChange={onNodesChange}
 				onEdgesChange={onEdgesChange}
+				onEdgeClick={handleEdgeClick}
+				onPaneClick={handleCloseProvenance}
 				nodeTypes={nodeTypes}
 				edgeTypes={edgeTypes}
 				fitView
@@ -60,6 +88,11 @@ function GraphCanvasInner(): React.JSX.Element {
 					}}
 				/>
 			</ReactFlow>
+			<EdgeProvenancePopover
+				position={provenancePos}
+				edgeData={provenanceData}
+				onClose={handleCloseProvenance}
+			/>
 		</div>
 	);
 }

@@ -43,6 +43,7 @@ function makeEdge(sourceId: string, targetId: string): AppEdge {
 		type: "dependency",
 		data: {
 			category: "value",
+			kind: "imports",
 			isManual: false,
 			isSuppressed: false,
 			isBundled: false,
@@ -50,6 +51,9 @@ function makeEdge(sourceId: string, targetId: string): AppEdge {
 			bundledCount: 0,
 			confidence: "syntactic",
 			edgeId: id,
+			sourceLocation: null,
+			resolutionMethod: null,
+			suppressionReason: null,
 		},
 	};
 }

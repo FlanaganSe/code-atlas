@@ -47,6 +47,7 @@ function makeEdge(sourceId: string, targetId: string, category: EdgeCategory = "
 		type: "dependency",
 		data: {
 			category,
+			kind: "imports",
 			isManual: false,
 			isSuppressed: false,
 			isBundled: false,
@@ -54,6 +55,9 @@ function makeEdge(sourceId: string, targetId: string, category: EdgeCategory = "
 			bundledCount: 0,
 			confidence: "syntactic",
 			edgeId: id,
+			sourceLocation: null,
+			resolutionMethod: null,
+			suppressionReason: null,
 		},
 	};
 }
@@ -300,6 +304,7 @@ describe("project()", () => {
 			type: "dependency",
 			data: {
 				category: "manual",
+				kind: "manual",
 				isManual: true,
 				isSuppressed: false,
 				isBundled: false,
@@ -307,6 +312,9 @@ describe("project()", () => {
 				bundledCount: 0,
 				confidence: "structural",
 				edgeId: "manual:1",
+				sourceLocation: null,
+				resolutionMethod: null,
+				suppressionReason: null,
 			},
 		};
 
@@ -407,5 +415,94 @@ describe("keyToId()", () => {
 			relativePath: "src/index.ts",
 		};
 		expect(keyToId(key)).toBe("typescript:file:src/index.ts");
+	});
+});
+
+// M6: Overlay projection tests
+describe("overlay projection", () => {
+	it("suppressed edges are hidden when showSuppressed is false", () => {
+		const { nodes, edges } = buildTestGraph();
+		const allExpanded = new Set(nodes.filter((n) => n.type !== "file").map((n) => n.id));
+
+		// Suppress the first edge
+		const suppressedId = edges[0].data.edgeId;
+		const suppressedIds = new Set([suppressedId]);
+
+		const result = project(
+			defaultInput({
+				discoveredNodes: nodes,
+				discoveredEdges: edges,
+				expandedNodeIds: allExpanded,
+				suppressedEdgeIds: suppressedIds,
+				showSuppressed: false,
+			}),
+		);
+
+		// Suppressed edge should be hidden
+		const suppressed = result.edges.find((e) => e.data.edgeId === suppressedId);
+		expect(suppressed).toBeUndefined();
+	});
+
+	it("suppressed edges are visible when showSuppressed is true", () => {
+		const { nodes, edges } = buildTestGraph();
+		const allExpanded = new Set(nodes.filter((n) => n.type !== "file").map((n) => n.id));
+
+		const suppressedId = edges[0].data.edgeId;
+		const suppressedIds = new Set([suppressedId]);
+
+		const result = project(
+			defaultInput({
+				discoveredNodes: nodes,
+				discoveredEdges: edges,
+				expandedNodeIds: allExpanded,
+				suppressedEdgeIds: suppressedIds,
+				showSuppressed: true,
+			}),
+		);
+
+		// Suppressed edge should be present and marked
+		const suppressed = result.edges.find((e) => e.data.edgeId === suppressedId);
+		expect(suppressed).toBeDefined();
+		expect(suppressed?.data.isSuppressed).toBe(true);
+	});
+
+	it("manual edges appear in projected output with isManual flag", () => {
+		const { nodes, edges } = buildTestGraph();
+		const allExpanded = new Set(nodes.filter((n) => n.type !== "file").map((n) => n.id));
+
+		const manualEdge: AppEdge = {
+			id: "manual:test",
+			source: nodes[2].id,
+			target: nodes[6].id,
+			type: "dependency",
+			data: {
+				category: "manual",
+				kind: "manual",
+				isManual: true,
+				isSuppressed: false,
+				isBundled: false,
+				bundledEdgeIds: [],
+				bundledCount: 0,
+				confidence: "structural",
+				edgeId: "manual:test",
+				sourceLocation: null,
+				resolutionMethod: "manual config",
+				suppressionReason: null,
+			},
+		};
+
+		const result = project(
+			defaultInput({
+				discoveredNodes: nodes,
+				discoveredEdges: edges,
+				overlayEdges: [manualEdge],
+				expandedNodeIds: allExpanded,
+			}),
+		);
+
+		const manual = result.edges.find((e) => e.data.edgeId === "manual:test");
+		expect(manual).toBeDefined();
+		expect(manual?.data.isManual).toBe(true);
+		expect(manual?.data.category).toBe("manual");
 	});
 });

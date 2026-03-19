@@ -58,6 +58,7 @@ function edgeDataToAppEdge(edge: EdgeData): AppEdge {
 		type: "dependency",
 		data: {
 			category: edge.category,
+			kind: edge.kind,
 			isManual: edge.kind === "manual",
 			isSuppressed: edge.overlayStatus.type === "suppressed",
 			isBundled: false,
@@ -65,6 +66,10 @@ function edgeDataToAppEdge(edge: EdgeData): AppEdge {
 			bundledCount: 1,
 			confidence: edge.confidence,
 			edgeId: edge.edgeId,
+			sourceLocation: edge.sourceLocation,
+			resolutionMethod: edge.resolutionMethod,
+			suppressionReason:
+				edge.overlayStatus.type === "suppressed" ? edge.overlayStatus.data.reason : null,
 		},
 	};
 }
@@ -119,6 +124,8 @@ export interface GraphStore {
 	collapseAll: () => void;
 	setCategoryFilter: (categories: Set<EdgeCategory>) => void;
 	toggleSuppressed: () => void;
+
+	applyOverlay: (manualEdges: readonly EdgeData[], suppressedEdgeIds: readonly string[]) => void;
 
 	// React Flow handlers
 	onNodesChange: (changes: NodeChange[]) => void;
@@ -275,6 +282,24 @@ export const useGraphStore = create<GraphStore>()((set, get) => ({
 		const newState = { ...state, categoryFilter: categories };
 		set({
 			categoryFilter: categories,
+			...runProjection(newState),
+			layoutVersion: state.layoutVersion + 1,
+		});
+	},
+
+	applyOverlay: (manualEdges, suppressedEdgeIds) => {
+		const state = get();
+		const newOverlayEdges = manualEdges.map(edgeDataToAppEdge);
+		const newSuppressedIds = new Set([...state.suppressedEdgeIds, ...suppressedEdgeIds]);
+
+		const newState = {
+			...state,
+			overlayEdges: [...state.overlayEdges, ...newOverlayEdges],
+			suppressedEdgeIds: newSuppressedIds,
+		};
+		set({
+			overlayEdges: newState.overlayEdges,
+			suppressedEdgeIds: newSuppressedIds,
 			...runProjection(newState),
 			layoutVersion: state.layoutVersion + 1,
 		});

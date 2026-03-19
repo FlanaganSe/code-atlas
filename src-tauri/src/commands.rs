@@ -7,7 +7,7 @@
 use codeatlas_core::{
     CompatibilityReport, DiscoveryResult, GraphHealth, ScanPhase, ScanSink,
 };
-use codeatlas_core::graph::types::{EdgeData, NodeData};
+use codeatlas_core::graph::types::{EdgeData, NodeData, ParseFailure, UnsupportedConstruct};
 use serde::Serialize;
 use tauri::ipc::Channel;
 use tauri::State;
@@ -42,6 +42,18 @@ pub enum ScanEvent {
         scan_id: String,
         scanned: usize,
         total: usize,
+    },
+    /// Detailed scan findings: unsupported constructs and parse failures.
+    Details {
+        scan_id: String,
+        unsupported_constructs: Vec<UnsupportedConstruct>,
+        parse_failures: Vec<ParseFailure>,
+    },
+    /// Overlay data: manual edges from config and suppressed edge IDs.
+    Overlay {
+        scan_id: String,
+        manual_edges: Vec<EdgeData>,
+        suppressed_edge_ids: Vec<String>,
     },
     Complete {
         scan_id: String,
@@ -91,6 +103,26 @@ impl ScanSink for ChannelSink {
             scan_id: self.scan_id.clone(),
             scanned,
             total,
+        });
+    }
+
+    fn on_details(
+        &self,
+        unsupported_constructs: Vec<UnsupportedConstruct>,
+        parse_failures: Vec<ParseFailure>,
+    ) {
+        let _ = self.channel.send(ScanEvent::Details {
+            scan_id: self.scan_id.clone(),
+            unsupported_constructs,
+            parse_failures,
+        });
+    }
+
+    fn on_overlay(&self, manual_edges: Vec<EdgeData>, suppressed_edge_ids: Vec<String>) {
+        let _ = self.channel.send(ScanEvent::Overlay {
+            scan_id: self.scan_id.clone(),
+            manual_edges,
+            suppressed_edge_ids,
         });
     }
 }

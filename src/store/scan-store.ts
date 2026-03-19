@@ -7,6 +7,7 @@
 
 import { create } from "zustand";
 import type { CompatibilityReport, GraphHealth } from "@/types/config";
+import type { ParseFailure, UnsupportedConstruct } from "@/types/graph";
 import type { ScanEvent, ScanStatus } from "@/types/scan";
 
 export interface ScanStore {
@@ -15,6 +16,8 @@ export interface ScanStore {
 	progress: { scanned: number; total: number } | null;
 	compatibilityReport: CompatibilityReport | null;
 	graphHealth: GraphHealth | null;
+	unsupportedConstructs: readonly UnsupportedConstruct[];
+	parseFailures: readonly ParseFailure[];
 	error: string | null;
 
 	startScan: (scanId: string) => void;
@@ -28,6 +31,8 @@ export const useScanStore = create<ScanStore>()((set, get) => ({
 	progress: null,
 	compatibilityReport: null,
 	graphHealth: null,
+	unsupportedConstructs: [],
+	parseFailures: [],
 	error: null,
 
 	startScan: (scanId: string) => {
@@ -75,8 +80,17 @@ export const useScanStore = create<ScanStore>()((set, get) => ({
 					progress: null,
 				});
 				break;
+			case "details":
+				set({
+					unsupportedConstructs: event.data.unsupportedConstructs,
+					parseFailures: event.data.parseFailures,
+				});
+				break;
 			case "phase":
 				// Phase events are handled by the graph store, not here
+				break;
+			case "overlay":
+				// Overlay events are handled by the graph store, not here
 				break;
 		}
 	},
@@ -88,6 +102,8 @@ export const useScanStore = create<ScanStore>()((set, get) => ({
 			progress: null,
 			compatibilityReport: null,
 			graphHealth: null,
+			unsupportedConstructs: [],
+			parseFailures: [],
 			error: null,
 		});
 	},

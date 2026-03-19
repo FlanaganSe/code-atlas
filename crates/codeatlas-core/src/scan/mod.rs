@@ -63,6 +63,16 @@ pub trait ScanSink: Send + Sync {
 
     /// Report scan progress.
     fn on_progress(&self, scanned: usize, total: usize);
+
+    /// Report detailed scan findings: unsupported constructs and parse failures.
+    fn on_details(
+        &self,
+        unsupported_constructs: Vec<UnsupportedConstruct>,
+        parse_failures: Vec<ParseFailure>,
+    );
+
+    /// Report overlay data: manual edges from config and suppressed edge IDs.
+    fn on_overlay(&self, manual_edges: Vec<EdgeData>, suppressed_edge_ids: Vec<String>);
 }
 
 // No-op sink for testing.
@@ -71,4 +81,11 @@ impl ScanSink for () {
     fn on_phase(&self, _phase: ScanPhase, _nodes: Vec<NodeData>, _edges: Vec<EdgeData>) {}
     fn on_health(&self, _health: GraphHealth) {}
     fn on_progress(&self, _scanned: usize, _total: usize) {}
+    fn on_details(
+        &self,
+        _unsupported_constructs: Vec<UnsupportedConstruct>,
+        _parse_failures: Vec<ParseFailure>,
+    ) {
+    }
+    fn on_overlay(&self, _manual_edges: Vec<EdgeData>, _suppressed_edge_ids: Vec<String>) {}
 }
