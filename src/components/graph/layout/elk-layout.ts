@@ -64,20 +64,22 @@ export function toElkGraph(
 		const size = NODE_SIZES[node.type] ?? NODE_SIZES.file;
 		const children = childrenMap.get(node.id);
 		const isExpanded = expandedNodeIds.has(node.id);
+		const isCompoundExpanded = isExpanded && children && children.length > 0;
 
+		// For expanded compound nodes: omit width/height so ELK computes from children.
+		// For leaf/collapsed nodes: set explicit estimated dimensions.
 		const elkNode: ElkNode = {
 			id: node.id,
-			width: isExpanded && children ? undefined : size.width,
-			height: isExpanded && children ? undefined : size.height,
-			layoutOptions: isExpanded
-				? {
-						"elk.padding": "[top=40,left=15,bottom=15,right=15]",
-					}
-				: undefined,
 		};
 
-		if (isExpanded && children) {
+		if (isCompoundExpanded) {
 			elkNode.children = children.map(buildElkNode);
+			elkNode.layoutOptions = {
+				"elk.padding": "[top=40,left=15,bottom=15,right=15]",
+			};
+		} else {
+			elkNode.width = size.width;
+			elkNode.height = size.height;
 		}
 
 		return elkNode;

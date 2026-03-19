@@ -15,8 +15,10 @@ export const PackageNode = memo(function PackageNode({ id, data }: PackageNodePr
 
 	return (
 		<div
-			className={`rounded-lg border-2 ${
-				isExpanded ? "border-blue-500/50 bg-blue-950/30" : "border-blue-500/30 bg-blue-950/60"
+			className={`relative rounded-lg border-2 ${
+				isExpanded
+					? "h-full w-full border-blue-500/50 bg-blue-950/20"
+					: "border-blue-500/30 bg-blue-950/60"
 			} min-w-[200px]`}
 		>
 			<Handle type="target" position={Position.Top} className="!bg-blue-400" />

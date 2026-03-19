@@ -15,9 +15,9 @@ export const ModuleNode = memo(function ModuleNode({ id, data }: ModuleNodeProps
 
 	return (
 		<div
-			className={`rounded-md border ${
+			className={`relative rounded-md border ${
 				isExpanded
-					? "border-neutral-600/50 bg-neutral-900/40"
+					? "h-full w-full border-neutral-600/50 bg-neutral-900/30"
 					: "border-neutral-600/30 bg-neutral-800/60"
 			} min-w-[170px]`}
 		>
