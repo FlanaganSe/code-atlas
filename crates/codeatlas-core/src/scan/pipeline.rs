@@ -51,6 +51,7 @@ pub fn run_scan(
         edges: Vec::new(),
         unsupported_constructs: Vec::new(),
         parse_failures: Vec::new(),
+        unresolved_imports: Vec::new(),
     };
 
     // Phase-aware collecting sink that streams to the real sink in phases
@@ -76,6 +77,9 @@ pub fn run_scan(
             .unsupported_constructs
             .extend(report.unsupported_constructs);
         all_results.parse_failures.extend(report.parse_failures);
+        all_results
+            .unresolved_imports
+            .extend(report.unresolved_imports);
 
         sink.on_progress(i + 1, total);
     }
@@ -199,16 +203,18 @@ pub fn run_scan(
     let health = GraphHealth {
         total_nodes: graph.node_count(),
         resolved_edges: graph.edge_count(),
-        unresolved_imports: 0, // We don't create unresolved entries
+        unresolved_imports: all_results.unresolved_imports.len(),
         parse_failures: all_results.parse_failures.len(),
         unsupported_constructs: all_results.unsupported_constructs.len(),
+        unresolved_import_details: all_results.unresolved_imports.clone(),
     };
     sink.on_health(health.clone());
 
-    // Send detailed findings (unsupported constructs + parse failures)
+    // Send detailed findings (unsupported constructs + parse failures + unresolved imports)
     sink.on_details(
         all_results.unsupported_constructs.clone(),
         all_results.parse_failures.clone(),
+        all_results.unresolved_imports.clone(),
     );
 
     // Send overlay data (manual edges + suppressed edge IDs)
@@ -429,6 +435,7 @@ fn _assert_phase_sink_send_sync(_: &PhaseSink) {}
 mod tests {
     use super::*;
     use crate::detector::{RustDetector, TypeScriptDetector};
+    use crate::graph::types::UnresolvedImport;
 
     #[test]
     fn scan_pipeline_on_this_project() {
@@ -596,6 +603,7 @@ mod tests {
             Option<(
                 Vec<crate::graph::types::UnsupportedConstruct>,
                 Vec<crate::graph::types::ParseFailure>,
+                Vec<UnresolvedImport>,
             )>,
         >,
         overlay: std::sync::Mutex<Option<(Vec<EdgeData>, Vec<String>)>>,
@@ -633,9 +641,10 @@ mod tests {
             &self,
             unsupported_constructs: Vec<crate::graph::types::UnsupportedConstruct>,
             parse_failures: Vec<crate::graph::types::ParseFailure>,
+            unresolved_imports: Vec<UnresolvedImport>,
         ) {
             *self.details.lock().expect("lock") =
-                Some((unsupported_constructs, parse_failures));
+                Some((unsupported_constructs, parse_failures, unresolved_imports));
         }
         fn on_overlay(&self, manual_edges: Vec<EdgeData>, suppressed_edge_ids: Vec<String>) {
             *self.overlay.lock().expect("lock") = Some((manual_edges, suppressed_edge_ids));

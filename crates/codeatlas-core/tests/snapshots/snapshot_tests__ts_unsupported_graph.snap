@@ -1,0 +1,17 @@
+---
+source: crates/codeatlas-core/tests/snapshot_tests.rs
+assertion_line: 214
+expression: summary
+---
+{
+  "node_count": 3,
+  "edge_count": 2,
+  "packages": [
+    "@unsupported/lib"
+  ],
+  "modules": 0,
+  "files": 2,
+  "unsupported_count": 4,
+  "unresolved_count": 2,
+  "parse_failure_count": 0
+}

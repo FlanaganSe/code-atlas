@@ -69,6 +69,7 @@ export const DetailPanel = memo(function DetailPanel({
 	const deselectNode = useGraphStore((s) => s.deselectNode);
 	const unsupportedConstructs = useScanStore((s) => s.unsupportedConstructs);
 	const parseFailures = useScanStore((s) => s.parseFailures);
+	const unresolvedImports = useScanStore((s) => s.unresolvedImports);
 
 	const selectedNode = useMemo(
 		() => discoveredNodes.find((n) => n.id === selectedNodeId) ?? null,
@@ -135,6 +136,7 @@ export const DetailPanel = memo(function DetailPanel({
 							nodeKind={nodeData.kind}
 							unsupportedConstructs={unsupportedConstructs}
 							parseFailures={parseFailures}
+							unresolvedImports={unresolvedImports}
 							discoveredEdges={discoveredEdges}
 							overlayEdges={overlayEdges}
 							nodeId={selectedNode.id}
@@ -470,6 +472,7 @@ function HealthTab({
 	nodeKind,
 	unsupportedConstructs,
 	parseFailures,
+	unresolvedImports,
 	discoveredEdges,
 	overlayEdges,
 	nodeId,
@@ -478,6 +481,7 @@ function HealthTab({
 	nodeKind: string;
 	unsupportedConstructs: readonly import("@/types/graph").UnsupportedConstruct[];
 	parseFailures: readonly import("@/types/graph").ParseFailure[];
+	unresolvedImports: readonly import("@/types/config").UnresolvedImport[];
 	discoveredEdges: readonly AppEdge[];
 	overlayEdges: readonly AppEdge[];
 	nodeId: string;
@@ -492,6 +496,15 @@ function HealthTab({
 	const nodeParseFailures = useMemo(
 		() => parseFailures.filter((f) => f.path === nodePath || f.path.startsWith(`${nodePath}/`)),
 		[parseFailures, nodePath],
+	);
+
+	// Filter unresolved imports by source file path prefix
+	const nodeUnresolved = useMemo(
+		() =>
+			unresolvedImports.filter(
+				(u) => u.sourceFile === nodePath || u.sourceFile.startsWith(`${nodePath}/`),
+			),
+		[unresolvedImports, nodePath],
 	);
 
 	// Check overlay involvement
@@ -540,11 +553,28 @@ function HealthTab({
 
 			{/* Unresolved imports */}
 			<div>
-				<h4 className="mb-1.5 font-medium text-neutral-300">Unresolved Imports</h4>
-				<p className="text-neutral-500">
-					Per-import unresolved tracking is not yet implemented. The graph health bar shows
-					aggregate counts. Detailed tracking is planned for M8.
-				</p>
+				<h4 className="mb-1.5 font-medium text-neutral-300">
+					Unresolved Imports ({nodeUnresolved.length})
+				</h4>
+				{nodeUnresolved.length === 0 ? (
+					<p className="text-neutral-500">No unresolved imports in this {nodeKind}.</p>
+				) : (
+					<div className="space-y-1.5">
+						{nodeUnresolved.map((u, i) => (
+							<div
+								key={`${u.sourceFile}:${u.specifier}:${i}`}
+								className="rounded bg-neutral-800/50 px-2 py-1.5"
+							>
+								<div className="flex items-center gap-2">
+									<AlertTriangle size={10} className="text-orange-400" />
+									<span className="font-mono text-orange-300">{u.specifier}</span>
+								</div>
+								<p className="mt-0.5 pl-4 text-neutral-400">{u.reason.type}</p>
+								<p className="mt-0.5 pl-4 font-mono text-[10px] text-neutral-500">{u.sourceFile}</p>
+							</div>
+						))}
+					</div>
+				)}
 			</div>
 
 			<Separator />

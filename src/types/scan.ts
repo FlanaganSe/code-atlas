@@ -5,7 +5,7 @@
  * ScanEvent is the transport envelope from codeatlas-tauri.
  */
 
-import type { CompatibilityReport, GraphHealth } from "./config";
+import type { CompatibilityReport, GraphHealth, UnresolvedImport } from "./config";
 import type { EdgeData, NodeData, ParseFailure, UnsupportedConstruct } from "./graph";
 
 // ---------------------------------------------------------------------------
@@ -69,6 +69,7 @@ export type ScanEvent =
 				readonly scanId: string;
 				readonly unsupportedConstructs: readonly UnsupportedConstruct[];
 				readonly parseFailures: readonly ParseFailure[];
+				readonly unresolvedImports: readonly UnresolvedImport[];
 			};
 	  }
 	| {

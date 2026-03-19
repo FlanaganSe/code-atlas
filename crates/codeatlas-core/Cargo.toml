@@ -21,3 +21,6 @@ tree-sitter-rust.workspace = true
 tree-sitter-typescript.workspace = true
 rayon.workspace = true
 ignore.workspace = true
+
+[dev-dependencies]
+insta.workspace = true

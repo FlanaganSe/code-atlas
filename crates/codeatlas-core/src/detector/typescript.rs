@@ -12,7 +12,8 @@ use crate::config::RepoConfig;
 use crate::graph::identity::{EdgeId, MaterializedKey};
 use crate::graph::types::{
     Confidence, EdgeCategory, EdgeData, EdgeKind, EntityKind, Language, NodeData, NodeKind,
-    OverlayStatus, ParseFailure, SourceLocation, UnsupportedConstruct, UnsupportedConstructType,
+    OverlayStatus, ParseFailure, SourceLocation, UnresolvedImport, UnresolvedReason,
+    UnsupportedConstruct, UnsupportedConstructType,
 };
 use crate::health::compatibility::{CompatibilityDetail, SupportStatus};
 use crate::profile::GraphProfile;
@@ -583,6 +584,7 @@ impl Detector for TypeScriptDetector {
             edges_discovered: 0,
             unsupported_constructs: Vec::new(),
             parse_failures: Vec::new(),
+            unresolved_imports: Vec::new(),
         };
 
         // Build resolver
@@ -1203,9 +1205,20 @@ fn extract_import_edges(
                         overlay_status: OverlayStatus::None,
                     });
                 }
-                ResolveResult::Unresolved(_) => {
-                    // Unresolved imports don't produce edges or phantom nodes.
-                    // They are tracked via the compatibility report.
+                ResolveResult::Unresolved(reason_str) => {
+                    // Track unresolved imports with structured reason
+                    let reason = if reason_str.contains("external package") {
+                        UnresolvedReason::ExternalPackage
+                    } else if reason_str.contains("could not resolve") {
+                        UnresolvedReason::NoMatchingFile
+                    } else {
+                        UnresolvedReason::Other(reason_str)
+                    };
+                    report.unresolved_imports.push(UnresolvedImport {
+                        source_file: file_relative.to_string(),
+                        specifier: raw_source.clone(),
+                        reason,
+                    });
                 }
             }
         }
@@ -1451,6 +1464,13 @@ fn detect_dynamic_imports(
                     ),
                     how_to_address: "Add manual edges in .codeatlas.yaml if the import target is known".to_string(),
                 });
+
+                // Dynamic imports are also unresolved
+                report.unresolved_imports.push(UnresolvedImport {
+                    source_file: file_relative.to_string(),
+                    specifier: strip_quotes(specifier),
+                    reason: UnresolvedReason::DynamicImport,
+                });
             }
         }
     }
@@ -1493,6 +1513,13 @@ fn detect_require_calls(
                         specifier
                     ),
                     how_to_address: "Convert to ESM import or add manual edges".to_string(),
+                });
+
+                // require() calls are also unresolved
+                report.unresolved_imports.push(UnresolvedImport {
+                    source_file: file_relative.to_string(),
+                    specifier: strip_quotes(specifier),
+                    reason: UnresolvedReason::CommonJsRequire,
                 });
             }
         }

@@ -25,3 +25,4 @@ tree-sitter-typescript = "0.23"
 rayon = "1"
 uuid = { version = "1", features = ["v4"] }
 ignore = "0.4"
+insta = { version = "1", features = ["json"] }

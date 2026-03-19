@@ -6,6 +6,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::graph::types::UnresolvedImport;
+
 /// Summary health metrics for the architecture graph.
 ///
 /// Displayed as a header metric in the UI so users can immediately
@@ -27,6 +29,9 @@ pub struct GraphHealth {
 
     /// Number of unsupported constructs detected.
     pub unsupported_constructs: usize,
+
+    /// Detailed list of unresolved imports with reasons.
+    pub unresolved_import_details: Vec<UnresolvedImport>,
 }
 
 impl GraphHealth {
@@ -38,6 +43,7 @@ impl GraphHealth {
             unresolved_imports: 0,
             parse_failures: 0,
             unsupported_constructs: 0,
+            unresolved_import_details: Vec::new(),
         }
     }
 }

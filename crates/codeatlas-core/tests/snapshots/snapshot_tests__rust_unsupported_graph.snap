@@ -1,0 +1,17 @@
+---
+source: crates/codeatlas-core/tests/snapshot_tests.rs
+assertion_line: 201
+expression: summary
+---
+{
+  "node_count": 6,
+  "edge_count": 5,
+  "packages": [
+    "fixture-unsupported"
+  ],
+  "modules": 2,
+  "files": 3,
+  "unsupported_count": 2,
+  "unresolved_count": 0,
+  "parse_failure_count": 0
+}

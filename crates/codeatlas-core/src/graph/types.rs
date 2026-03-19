@@ -310,6 +310,48 @@ pub struct ParseFailure {
     pub reason: String,
 }
 
+// ---------------------------------------------------------------------------
+// UnresolvedImport
+// ---------------------------------------------------------------------------
+
+/// An import statement that could not be resolved to a target node.
+///
+/// Unresolved imports are a first-class metric — they tell users
+/// how complete the graph is. Each carries the reason so the UI
+/// can group by cause and explain what the user can do about it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnresolvedImport {
+    /// Relative path of the file containing the import.
+    pub source_file: String,
+    /// The raw import specifier that couldn't be resolved.
+    pub specifier: String,
+    /// Why resolution failed.
+    pub reason: UnresolvedReason,
+}
+
+/// Why an import could not be resolved.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data", rename_all = "camelCase")]
+pub enum UnresolvedReason {
+    /// Bare specifier not matching any workspace package.
+    ExternalPackage,
+    /// Relative path with no matching file after extension probing.
+    NoMatchingFile,
+    /// Dynamic `import()` expression — not statically resolvable.
+    DynamicImport,
+    /// `require()` call — CommonJS not resolved in POC.
+    CommonJsRequire,
+    /// Specifier looks like a path alias but doesn't match tsconfig paths.
+    PathAliasNotMatched,
+    /// `use external_crate::` where the crate is not in the workspace.
+    ExternalCrate,
+    /// `use` path couldn't be mapped to a file or module.
+    UnresolvablePath,
+    /// Other reasons.
+    Other(String),
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

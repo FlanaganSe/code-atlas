@@ -12,6 +12,7 @@ describe("useScanStore", () => {
 			graphHealth: null,
 			unsupportedConstructs: [],
 			parseFailures: [],
+			unresolvedImports: [],
 			error: null,
 		});
 	});
@@ -79,6 +80,7 @@ describe("useScanStore", () => {
 					unresolvedImports: 1,
 					parseFailures: 0,
 					unsupportedConstructs: 2,
+					unresolvedImportDetails: [],
 				},
 			},
 		};
@@ -148,6 +150,13 @@ describe("useScanStore", () => {
 					},
 				],
 				parseFailures: [{ path: "src/broken.rs", reason: "syntax error" }],
+				unresolvedImports: [
+					{
+						sourceFile: "src/lib.rs",
+						specifier: "serde::Serialize",
+						reason: { type: "externalCrate" as const },
+					},
+				],
 			},
 		};
 		useScanStore.getState().handleScanEvent(event);
@@ -157,6 +166,8 @@ describe("useScanStore", () => {
 		expect(state.unsupportedConstructs[0].constructType).toBe("cfgGate");
 		expect(state.parseFailures).toHaveLength(1);
 		expect(state.parseFailures[0].path).toBe("src/broken.rs");
+		expect(state.unresolvedImports).toHaveLength(1);
+		expect(state.unresolvedImports[0].specifier).toBe("serde::Serialize");
 	});
 
 	// M6: Compatibility report provisional → final transition
@@ -227,6 +238,7 @@ describe("useScanStore", () => {
 					},
 				],
 				parseFailures: [],
+				unresolvedImports: [],
 			},
 		});
 		expect(useScanStore.getState().unsupportedConstructs).toHaveLength(1);
@@ -234,5 +246,6 @@ describe("useScanStore", () => {
 		useScanStore.getState().reset();
 		expect(useScanStore.getState().unsupportedConstructs).toHaveLength(0);
 		expect(useScanStore.getState().parseFailures).toHaveLength(0);
+		expect(useScanStore.getState().unresolvedImports).toHaveLength(0);
 	});
 });

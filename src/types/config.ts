@@ -67,7 +67,28 @@ export interface GraphHealth {
 	readonly unresolvedImports: number;
 	readonly parseFailures: number;
 	readonly unsupportedConstructs: number;
+	readonly unresolvedImportDetails: readonly UnresolvedImport[];
 }
+
+// ---------------------------------------------------------------------------
+// UnresolvedImport
+// ---------------------------------------------------------------------------
+
+export interface UnresolvedImport {
+	readonly sourceFile: string;
+	readonly specifier: string;
+	readonly reason: UnresolvedReason;
+}
+
+export type UnresolvedReason =
+	| { readonly type: "externalPackage" }
+	| { readonly type: "noMatchingFile" }
+	| { readonly type: "dynamicImport" }
+	| { readonly type: "commonJsRequire" }
+	| { readonly type: "pathAliasNotMatched" }
+	| { readonly type: "externalCrate" }
+	| { readonly type: "unresolvablePath" }
+	| { readonly type: "other"; readonly data: string };
 
 // ---------------------------------------------------------------------------
 // WorkspaceKind

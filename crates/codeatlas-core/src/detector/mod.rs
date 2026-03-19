@@ -12,7 +12,7 @@ pub mod rust;
 pub mod typescript;
 
 use crate::config::RepoConfig;
-use crate::graph::types::{EdgeData, Language, NodeData, ParseFailure, UnsupportedConstruct};
+use crate::graph::types::{EdgeData, Language, NodeData, ParseFailure, UnresolvedImport, UnsupportedConstruct};
 use crate::health::compatibility::{CompatibilityDetail, SupportStatus};
 use crate::profile::GraphProfile;
 use crate::workspace::WorkspaceInfo;
@@ -109,6 +109,9 @@ pub struct DetectorReport {
 
     /// Files that could not be fully parsed.
     pub parse_failures: Vec<ParseFailure>,
+
+    /// Imports that could not be resolved to a target node.
+    pub unresolved_imports: Vec<UnresolvedImport>,
 }
 
 // A no-op sink useful for testing.

@@ -590,7 +590,17 @@ Create a JSON fixture representing a small multi-package monorepo (~30 nodes) th
 #### M8: Golden Corpus Validation
 **Goal:** All POC golden corpus repos produce correct graphs. This is the headline acceptance metric (PRD §22). Correctness is proven before polish.
 
-- [ ] M8: Golden Corpus Validation — corpus correctness, compatibility accuracy, edge category verification
+- [x] M8: Golden Corpus Validation — corpus correctness, compatibility accuracy, edge category verification
+  - [x] Step 1 — Backend: Add UnresolvedImport types + update DetectorReport/ScanResults/ScanSink → verify: `cargo check -p codeatlas-core`
+  - [x] Step 2 — Backend: Update Rust + TypeScript detectors to track unresolved imports → verify: `cargo test -p codeatlas-core`
+  - [x] Step 3 — Backend: Update pipeline to merge unresolved imports + compute real GraphHealth count → verify: `cargo test --workspace`
+  - [x] Step 4 — Tauri shell: Update ScanEvent::Details + ChannelSink for unresolved imports → verify: `cargo check --workspace`
+  - [x] Step 5 — Frontend: Update types, stores, and UI for unresolved imports → verify: `pnpm typecheck && pnpm test`
+  - [x] Step 6 — Golden corpus: assertion-based integration tests for all 5 fixtures → verify: `cargo test --workspace`
+  - [x] Step 7 — Cross-boundary contract tests for all Rust↔TypeScript types → verify: `cargo test --workspace`
+  - [x] Step 8 — Add insta + snapshot tests for golden corpus fixtures → verify: `cargo test --workspace`
+  - [x] Step 9 — Final verification: all checks pass → verify: `cargo clippy --workspace -- -D warnings && cargo test --workspace && pnpm typecheck && pnpm biome check && pnpm test`
+  Commit: "feat: golden corpus validation — unresolved imports, contract tests, 5-fixture corpus (M8)"
 
 **What to verify (PRD §22 — "at least 2 reference repos per supported language"):**
 - **This project's own repo** scans correctly: all workspace packages discovered, inter-package deps correct, compatibility report accurate

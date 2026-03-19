@@ -11,7 +11,7 @@ pub use pipeline::{run_scan, ScanError};
 
 use serde::{Deserialize, Serialize};
 
-use crate::graph::types::{EdgeData, NodeData, ParseFailure, UnsupportedConstruct};
+use crate::graph::types::{EdgeData, NodeData, ParseFailure, UnresolvedImport, UnsupportedConstruct};
 use crate::health::compatibility::CompatibilityReport;
 use crate::health::graph_health::GraphHealth;
 
@@ -41,6 +41,7 @@ pub struct ScanResults {
     pub edges: Vec<EdgeData>,
     pub unsupported_constructs: Vec<UnsupportedConstruct>,
     pub parse_failures: Vec<ParseFailure>,
+    pub unresolved_imports: Vec<UnresolvedImport>,
 }
 
 /// Domain-level sink for streaming scan output.
@@ -64,11 +65,12 @@ pub trait ScanSink: Send + Sync {
     /// Report scan progress.
     fn on_progress(&self, scanned: usize, total: usize);
 
-    /// Report detailed scan findings: unsupported constructs and parse failures.
+    /// Report detailed scan findings: unsupported constructs, parse failures, and unresolved imports.
     fn on_details(
         &self,
         unsupported_constructs: Vec<UnsupportedConstruct>,
         parse_failures: Vec<ParseFailure>,
+        unresolved_imports: Vec<UnresolvedImport>,
     );
 
     /// Report overlay data: manual edges from config and suppressed edge IDs.
@@ -85,6 +87,7 @@ impl ScanSink for () {
         &self,
         _unsupported_constructs: Vec<UnsupportedConstruct>,
         _parse_failures: Vec<ParseFailure>,
+        _unresolved_imports: Vec<UnresolvedImport>,
     ) {
     }
     fn on_overlay(&self, _manual_edges: Vec<EdgeData>, _suppressed_edge_ids: Vec<String>) {}

@@ -6,7 +6,7 @@
  */
 
 import { create } from "zustand";
-import type { CompatibilityReport, GraphHealth } from "@/types/config";
+import type { CompatibilityReport, GraphHealth, UnresolvedImport } from "@/types/config";
 import type { ParseFailure, UnsupportedConstruct } from "@/types/graph";
 import type { ScanEvent, ScanStatus } from "@/types/scan";
 
@@ -18,6 +18,7 @@ export interface ScanStore {
 	graphHealth: GraphHealth | null;
 	unsupportedConstructs: readonly UnsupportedConstruct[];
 	parseFailures: readonly ParseFailure[];
+	unresolvedImports: readonly UnresolvedImport[];
 	error: string | null;
 	scanPath: string | null;
 
@@ -35,6 +36,7 @@ export const useScanStore = create<ScanStore>()((set, get) => ({
 	graphHealth: null,
 	unsupportedConstructs: [],
 	parseFailures: [],
+	unresolvedImports: [],
 	error: null,
 	scanPath: null,
 
@@ -91,6 +93,7 @@ export const useScanStore = create<ScanStore>()((set, get) => ({
 				set({
 					unsupportedConstructs: event.data.unsupportedConstructs,
 					parseFailures: event.data.parseFailures,
+					unresolvedImports: event.data.unresolvedImports,
 				});
 				break;
 			case "phase":
@@ -111,6 +114,7 @@ export const useScanStore = create<ScanStore>()((set, get) => ({
 			graphHealth: null,
 			unsupportedConstructs: [],
 			parseFailures: [],
+			unresolvedImports: [],
 			error: null,
 			scanPath: null,
 		});

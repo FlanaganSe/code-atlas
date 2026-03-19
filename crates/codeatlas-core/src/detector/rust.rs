@@ -12,7 +12,8 @@ use crate::config::RepoConfig;
 use crate::graph::identity::{normalize_path, EdgeId, MaterializedKey};
 use crate::graph::types::{
     Confidence, EdgeCategory, EdgeData, EdgeKind, EntityKind, Language, NodeData, NodeKind,
-    OverlayStatus, ParseFailure, SourceLocation, UnsupportedConstruct, UnsupportedConstructType,
+    OverlayStatus, ParseFailure, SourceLocation, UnresolvedImport, UnresolvedReason,
+    UnsupportedConstruct, UnsupportedConstructType,
 };
 use crate::health::compatibility::{CompatibilityDetail, SupportStatus};
 use crate::profile::GraphProfile;
@@ -194,6 +195,7 @@ impl Detector for RustDetector {
             edges_discovered: 0,
             unsupported_constructs: Vec::new(),
             parse_failures: Vec::new(),
+            unresolved_imports: Vec::new(),
         };
 
         // Phase 1: Package topology from cargo_metadata
@@ -793,6 +795,7 @@ fn detect_file_edges(
                 workspace_root,
                 &crate_to_path,
                 &dep_categories,
+                report,
             );
             all_edges.extend(import_edges);
 
@@ -883,6 +886,7 @@ fn extract_use_edges(
     workspace_root: &Utf8Path,
     crate_to_path: &HashMap<String, String>,
     dep_categories: &HashMap<(String, String), EdgeCategory>,
+    report: &mut DetectorReport,
 ) -> Vec<EdgeData> {
     let mut edges = Vec::new();
     let mut cursor = QueryCursor::new();
@@ -920,6 +924,24 @@ fn extract_use_edges(
             );
 
             let Some((target_key, is_cross_crate, target_crate)) = resolved else {
+                // Track the unresolved import with reason
+                let segments: Vec<&str> = use_path.split("::").collect();
+                let first = segments.first().copied().unwrap_or("");
+                let reason = match first {
+                    "crate" | "super" | "self" => UnresolvedReason::UnresolvablePath,
+                    _ => {
+                        if crate_to_path.contains_key(first) {
+                            UnresolvedReason::UnresolvablePath
+                        } else {
+                            UnresolvedReason::ExternalCrate
+                        }
+                    }
+                };
+                report.unresolved_imports.push(UnresolvedImport {
+                    source_file: file_relative.to_string(),
+                    specifier: use_path.clone(),
+                    reason,
+                });
                 continue;
             };
 
@@ -1441,6 +1463,7 @@ mod serde_impl;
             edges_discovered: 0,
             unsupported_constructs: Vec::new(),
             parse_failures: Vec::new(),
+            unresolved_imports: Vec::new(),
         };
 
         detect_cfg_constructs(

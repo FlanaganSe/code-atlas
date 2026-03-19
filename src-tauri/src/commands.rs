@@ -7,7 +7,7 @@
 use codeatlas_core::{
     CompatibilityReport, DiscoveryResult, GraphHealth, ScanPhase, ScanSink,
 };
-use codeatlas_core::graph::types::{EdgeData, NodeData, ParseFailure, UnsupportedConstruct};
+use codeatlas_core::graph::types::{EdgeData, NodeData, ParseFailure, UnresolvedImport, UnsupportedConstruct};
 use serde::Serialize;
 use tauri::ipc::Channel;
 use tauri::State;
@@ -51,7 +51,7 @@ pub enum ScanEvent {
         scanned: usize,
         total: usize,
     },
-    /// Detailed scan findings: unsupported constructs and parse failures.
+    /// Detailed scan findings: unsupported constructs, parse failures, and unresolved imports.
     Details {
         #[serde(rename = "scanId")]
         scan_id: String,
@@ -59,6 +59,8 @@ pub enum ScanEvent {
         unsupported_constructs: Vec<UnsupportedConstruct>,
         #[serde(rename = "parseFailures")]
         parse_failures: Vec<ParseFailure>,
+        #[serde(rename = "unresolvedImports")]
+        unresolved_imports: Vec<UnresolvedImport>,
     },
     /// Overlay data: manual edges from config and suppressed edge IDs.
     Overlay {
@@ -126,11 +128,13 @@ impl ScanSink for ChannelSink {
         &self,
         unsupported_constructs: Vec<UnsupportedConstruct>,
         parse_failures: Vec<ParseFailure>,
+        unresolved_imports: Vec<UnresolvedImport>,
     ) {
         let _ = self.channel.send(ScanEvent::Details {
             scan_id: self.scan_id.clone(),
             unsupported_constructs,
             parse_failures,
+            unresolved_imports,
         });
     }
 
@@ -314,6 +318,7 @@ mod tests {
             scan_id: "test-123".to_string(),
             unsupported_constructs: vec![],
             parse_failures: vec![],
+            unresolved_imports: vec![],
         };
         let json = serde_json::to_string(&event).unwrap();
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -323,6 +328,7 @@ mod tests {
         assert!(data.get("scanId").is_some(), "expected scanId, got: {data}");
         assert!(data.get("unsupportedConstructs").is_some(), "expected unsupportedConstructs, got: {data}");
         assert!(data.get("parseFailures").is_some(), "expected parseFailures, got: {data}");
+        assert!(data.get("unresolvedImports").is_some(), "expected unresolvedImports, got: {data}");
     }
 
     #[test]

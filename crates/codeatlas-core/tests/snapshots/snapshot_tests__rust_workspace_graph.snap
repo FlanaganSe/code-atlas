@@ -1,0 +1,18 @@
+---
+source: crates/codeatlas-core/tests/snapshot_tests.rs
+assertion_line: 175
+expression: summary
+---
+{
+  "node_count": 4,
+  "edge_count": 3,
+  "packages": [
+    "fixture-cli",
+    "fixture-core"
+  ],
+  "modules": 0,
+  "files": 2,
+  "unsupported_count": 1,
+  "unresolved_count": 0,
+  "parse_failure_count": 0
+}
