@@ -7,7 +7,9 @@ import {
 	fixtureOverlayEdges,
 	fixtureSuppressedEdgeIds,
 } from "./fixtures/demo-graph";
+import { useScan } from "./hooks/use-scan";
 import { useGraphStore } from "./store/graph-store";
+import { useScanStore } from "./store/scan-store";
 import type {
 	CompatibilityAssessment,
 	CompatibilityDetail,
@@ -18,7 +20,7 @@ import type {
 type AppState =
 	| { status: "idle" }
 	| { status: "discovering" }
-	| { status: "discovered"; result: DiscoveryResult }
+	| { status: "discovered"; result: DiscoveryResult; path: string }
 	| { status: "error"; message: string };
 
 export function App(): React.JSX.Element {
@@ -29,6 +31,10 @@ export function App(): React.JSX.Element {
 	const collapseAll = useGraphStore((s) => s.collapseAll);
 	const toggleSuppressed = useGraphStore((s) => s.toggleSuppressed);
 	const showSuppressed = useGraphStore((s) => s.showSuppressed);
+
+	const scanStatus = useScanStore((s) => s.scanStatus);
+	const scanProgress = useScanStore((s) => s.progress);
+	const { startScan, cancelScan } = useScan();
 
 	async function handleOpenDirectory(): Promise<void> {
 		setState({ status: "discovering" });
@@ -41,7 +47,7 @@ export function App(): React.JSX.Element {
 			const result = await invoke<DiscoveryResult>("discover_workspace", {
 				path,
 			});
-			setState({ status: "discovered", result });
+			setState({ status: "discovered", result, path });
 		} catch (err) {
 			setState({
 				status: "error",
@@ -50,15 +56,36 @@ export function App(): React.JSX.Element {
 		}
 	}
 
+	async function handleStartScan(): Promise<void> {
+		if (state.status !== "discovered") return;
+		await startScan(state.path);
+	}
+
 	function handleLoadDemoGraph(): void {
 		loadFixture(fixtureNodes, fixtureEdges, fixtureOverlayEdges, new Set(fixtureSuppressedEdgeIds));
 	}
+
+	const isScanning = scanStatus === "scanning";
 
 	return (
 		<main className="flex h-screen flex-col bg-neutral-950 text-neutral-100">
 			<header className="flex shrink-0 items-center justify-between border-b border-neutral-800 px-6 py-3">
 				<h1 className="text-xl font-semibold">Code Atlas</h1>
 				<div className="flex items-center gap-3">
+					{isScanning && scanProgress && (
+						<span className="text-xs text-neutral-400">
+							Scanning... {scanProgress.scanned}/{scanProgress.total}
+						</span>
+					)}
+					{isScanning && (
+						<button
+							type="button"
+							onClick={() => cancelScan()}
+							className="rounded bg-red-900/50 px-3 py-1.5 text-xs font-medium text-red-300 transition-colors hover:bg-red-800/50"
+						>
+							Cancel Scan
+						</button>
+					)}
 					{hasGraph && (
 						<>
 							<button
@@ -88,6 +115,15 @@ export function App(): React.JSX.Element {
 							</button>
 						</>
 					)}
+					{state.status === "discovered" && !isScanning && (
+						<button
+							type="button"
+							onClick={handleStartScan}
+							className="rounded-lg bg-purple-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-purple-500"
+						>
+							Scan
+						</button>
+					)}
 					<button
 						type="button"
 						onClick={handleLoadDemoGraph}
@@ -98,7 +134,7 @@ export function App(): React.JSX.Element {
 					<button
 						type="button"
 						onClick={handleOpenDirectory}
-						disabled={state.status === "discovering"}
+						disabled={state.status === "discovering" || isScanning}
 						className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{state.status === "discovering" ? "Discovering..." : "Open Directory"}

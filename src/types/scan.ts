@@ -28,7 +28,10 @@ export type ScanStatus = "idle" | "scanning" | "complete" | "error" | "cancelled
 export type ScanEvent =
 	| {
 			readonly event: "compatibilityReport";
-			readonly data: CompatibilityReport;
+			readonly data: {
+				readonly scanId: string;
+				readonly report: CompatibilityReport;
+			};
 	  }
 	| {
 			readonly event: "phase";
@@ -41,11 +44,15 @@ export type ScanEvent =
 	  }
 	| {
 			readonly event: "health";
-			readonly data: GraphHealth;
+			readonly data: {
+				readonly scanId: string;
+				readonly health: GraphHealth;
+			};
 	  }
 	| {
 			readonly event: "progress";
 			readonly data: {
+				readonly scanId: string;
 				readonly scanned: number;
 				readonly total: number;
 			};
@@ -59,6 +66,7 @@ export type ScanEvent =
 	| {
 			readonly event: "error";
 			readonly data: {
+				readonly scanId: string;
 				readonly message: string;
 			};
 	  };

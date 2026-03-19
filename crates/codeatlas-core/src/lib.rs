@@ -38,7 +38,7 @@ pub use error::CoreError;
 pub use graph::{ArchGraph, EdgeId, GraphOverlay, MaterializedKey};
 pub use health::{CompatibilityReport, GraphHealth};
 pub use profile::GraphProfile;
-pub use scan::{ScanPhase, ScanResults, ScanSink};
+pub use scan::{run_scan, ScanError, ScanPhase, ScanResults, ScanSink};
 pub use workspace::WorkspaceInfo;
 
 use camino::Utf8Path;
@@ -47,6 +47,9 @@ use std::sync::Arc;
 
 use detector::{CompatibilityAssessment, Detector, RustDetector, TypeScriptDetector};
 use health::compatibility::CompatibilityReport as CompatReport;
+
+// Re-export for Tauri command usage
+pub use detector::{DetectorSink, RustDetector as RustDetectorType, TypeScriptDetector as TypeScriptDetectorType};
 
 /// Result of workspace discovery — bundles all information needed
 /// by the frontend to display the initial workspace state.
@@ -72,8 +75,7 @@ pub struct DiscoveryResult {
 /// for concurrent queries.
 #[derive(Clone)]
 pub struct AnalysisHost {
-    /// The architecture graph (populated by scanning in M4).
-    #[expect(dead_code)]
+    /// The architecture graph (populated by scanning).
     graph: ArchGraph,
     config: RepoConfig,
     profile: GraphProfile,
@@ -159,6 +161,51 @@ impl AnalysisHost {
             compatibility,
             non_functional_config_sections,
         })
+    }
+
+    /// Apply scan results to the host, populating the graph.
+    pub fn apply_scan_results(&mut self, results: &ScanResults) -> Result<(), error::CoreError> {
+        let mut graph = ArchGraph::new();
+        for node in &results.nodes {
+            if !graph.contains_node(&node.materialized_key) {
+                graph.add_node(node.clone())?;
+            }
+        }
+        for edge in &results.edges {
+            if !graph.contains_edge(&edge.edge_id)
+                && graph.contains_node(&edge.source_key)
+                && graph.contains_node(&edge.target_key)
+            {
+                graph.add_edge(edge.clone())?;
+            }
+        }
+        self.graph = graph;
+        Ok(())
+    }
+
+    /// Update the compatibility report (e.g., after scan enrichment).
+    pub fn set_compatibility(&mut self, report: CompatReport) {
+        self.compatibility = report;
+    }
+
+    /// Get a reference to the current graph.
+    pub fn graph(&self) -> &ArchGraph {
+        &self.graph
+    }
+
+    /// Get workspace info.
+    pub fn workspace(&self) -> Option<&WorkspaceInfo> {
+        self.workspace.as_ref()
+    }
+
+    /// Get config.
+    pub fn config(&self) -> &RepoConfig {
+        &self.config
+    }
+
+    /// Get profile.
+    pub fn profile(&self) -> &GraphProfile {
+        &self.profile
     }
 
     /// Take an immutable snapshot for concurrent queries.

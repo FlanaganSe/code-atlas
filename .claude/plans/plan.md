@@ -437,7 +437,16 @@ Create a JSON fixture representing a small multi-package monorepo (~30 nodes) th
 #### M4: Rust Detector + Streaming
 **Goal:** Rust detector parses a real directory. Graph builds in petgraph with edge evidence and categories. Data streams via Channel<T> with progressive rendering.
 
-- [ ] M4: Rust Detector + Streaming — real Rust scanning with tree-sitter + cargo_metadata, Channel<T> streaming, cancel support
+- [x] M4: Rust Detector + Streaming — real Rust scanning with tree-sitter + cargo_metadata, Channel<T> streaming, cancel support
+  - [x] Step 1 — Add dependencies (tree-sitter, tree-sitter-rust, rayon, tokio-util, uuid, ignore)
+  - [x] Step 2 — Implement Rust detector (detector/rust.rs) with 3 phases
+  - [x] Step 3 — Implement scan pipeline (scan/pipeline.rs)
+  - [x] Step 4 — Update AnalysisHost + Tauri commands (start_scan, cancel_scan, ChannelSink)
+  - [x] Step 5 — Frontend scan-store, use-scan hook, NodeData→AppNode conversion
+  - [x] Step 6 — Update App.tsx with scan UI (Scan/Cancel buttons, progress)
+  - [x] Step 7 — Tests (13 detector, 2 pipeline, 8 scan-store, 4 graph-store scan tests)
+  - [x] Step 8 — All checks pass (clippy, cargo test 81, pnpm test 43, typecheck, biome)
+  Commit: "feat: Rust detector + streaming scan pipeline (M4)"
 
 **What to verify:**
 - Rust detector discovers all crates in a Cargo workspace

@@ -7,6 +7,8 @@
 
 pub mod pipeline;
 
+pub use pipeline::{run_scan, ScanError};
+
 use serde::{Deserialize, Serialize};
 
 use crate::graph::types::{EdgeData, NodeData, ParseFailure, UnsupportedConstruct};

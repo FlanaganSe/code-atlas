@@ -2,18 +2,104 @@
 //!
 //! All analysis logic lives in `codeatlas-core`. These commands
 //! provide the IPC bridge: open file dialog, invoke discovery,
-//! and return serialized results.
+//! start/cancel scans, and return serialized results.
 
-use codeatlas_core::DiscoveryResult;
+use codeatlas_core::{
+    CompatibilityReport, DiscoveryResult, GraphHealth, ScanPhase, ScanSink,
+};
+use codeatlas_core::graph::types::{EdgeData, NodeData};
+use serde::Serialize;
+use tauri::ipc::Channel;
 use tauri::State;
 use tauri_plugin_dialog::DialogExt;
+use tokio_util::sync::CancellationToken;
 
 use crate::AppState;
 
+// ---------------------------------------------------------------------------
+// ScanEvent — transport envelope (lives in tauri shell, NOT in core)
+// ---------------------------------------------------------------------------
+
+/// Events streamed to the frontend during a scan via `Channel<ScanEvent>`.
+#[derive(Clone, Serialize)]
+#[serde(tag = "event", content = "data", rename_all = "camelCase")]
+pub enum ScanEvent {
+    CompatibilityReport {
+        scan_id: String,
+        report: CompatibilityReport,
+    },
+    Phase {
+        scan_id: String,
+        phase: ScanPhase,
+        nodes: Vec<NodeData>,
+        edges: Vec<EdgeData>,
+    },
+    Health {
+        scan_id: String,
+        health: GraphHealth,
+    },
+    Progress {
+        scan_id: String,
+        scanned: usize,
+        total: usize,
+    },
+    Complete {
+        scan_id: String,
+    },
+    Error {
+        scan_id: String,
+        message: String,
+    },
+}
+
+// ---------------------------------------------------------------------------
+// ChannelSink — adapts ScanSink to Channel<ScanEvent>
+// ---------------------------------------------------------------------------
+
+/// Adapts the domain-level `ScanSink` trait to Tauri's `Channel<ScanEvent>`.
+struct ChannelSink {
+    scan_id: String,
+    channel: Channel<ScanEvent>,
+}
+
+impl ScanSink for ChannelSink {
+    fn on_compatibility(&self, report: CompatibilityReport) {
+        let _ = self.channel.send(ScanEvent::CompatibilityReport {
+            scan_id: self.scan_id.clone(),
+            report,
+        });
+    }
+
+    fn on_phase(&self, phase: ScanPhase, nodes: Vec<NodeData>, edges: Vec<EdgeData>) {
+        let _ = self.channel.send(ScanEvent::Phase {
+            scan_id: self.scan_id.clone(),
+            phase,
+            nodes,
+            edges,
+        });
+    }
+
+    fn on_health(&self, health: GraphHealth) {
+        let _ = self.channel.send(ScanEvent::Health {
+            scan_id: self.scan_id.clone(),
+            health,
+        });
+    }
+
+    fn on_progress(&self, scanned: usize, total: usize) {
+        let _ = self.channel.send(ScanEvent::Progress {
+            scan_id: self.scan_id.clone(),
+            scanned,
+            total,
+        });
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Commands
+// ---------------------------------------------------------------------------
+
 /// Open a native directory picker dialog.
-///
-/// Returns the selected directory path, or an error if the user
-/// cancels or the dialog fails.
 #[tauri::command]
 pub async fn open_directory(app: tauri::AppHandle) -> Result<Option<String>, String> {
     let (tx, rx) = tokio::sync::oneshot::channel();
@@ -29,23 +115,11 @@ pub async fn open_directory(app: tauri::AppHandle) -> Result<Option<String>, Str
 }
 
 /// Discover workspace structure at the given directory path.
-///
-/// Runs workspace discovery (cargo_metadata, JS workspace detection),
-/// loads `.codeatlas.yaml`, detects the graph profile, and runs
-/// detector compatibility assessments.
-///
-/// Uses `spawn_blocking` because `cargo_metadata` is synchronous
-/// and can take 2-10s on first run. The AnalysisHost is persisted
-/// as Tauri managed state so snapshot() carries accumulated state.
 #[tauri::command]
 pub async fn discover_workspace(
     path: String,
     state: State<'_, AppState>,
 ) -> Result<DiscoveryResult, String> {
-    // Clone the host out of managed state so we can move it into spawn_blocking.
-    // NOTE: This has a TOCTOU race if multiple discover_workspace calls run
-    // concurrently — the last to finish wins. Acceptable for POC since there's
-    // only one UI button. M4 should switch to tokio::sync::Mutex.
     let mut host = state
         .host
         .lock()
@@ -62,7 +136,6 @@ pub async fn discover_workspace(
 
     let result = result.map_err(|e| format!("discovery error: {e}"))?;
 
-    // Write the updated host back to managed state
     let mut guard = state
         .host
         .lock()
@@ -70,4 +143,116 @@ pub async fn discover_workspace(
     *guard = updated_host;
 
     Ok(result)
+}
+
+/// Start a scan of the workspace at the given path.
+///
+/// Results stream to the frontend via `on_event` channel.
+#[tauri::command]
+pub async fn start_scan(
+    _path: String,
+    on_event: Channel<ScanEvent>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let scan_id = uuid::Uuid::new_v4().to_string();
+
+    // Cancel any existing scan
+    {
+        let mut token_guard = state
+            .cancel_token
+            .lock()
+            .map_err(|e| format!("lock error: {e}"))?;
+        if let Some(old_token) = token_guard.take() {
+            old_token.cancel();
+        }
+    }
+
+    // Create new cancellation token
+    let cancel = CancellationToken::new();
+    {
+        let mut token_guard = state
+            .cancel_token
+            .lock()
+            .map_err(|e| format!("lock error: {e}"))?;
+        *token_guard = Some(cancel.clone());
+    }
+
+    // Clone state needed for the scan
+    let host = state
+        .host
+        .lock()
+        .map_err(|e| format!("lock error: {e}"))?
+        .clone();
+
+    let workspace = host
+        .workspace()
+        .cloned()
+        .ok_or_else(|| "no workspace discovered — run discover_workspace first".to_string())?;
+    let config = host.config().clone();
+    let profile = host.profile().clone();
+
+    let scan_id_clone = scan_id.clone();
+    let on_event_clone = on_event.clone();
+
+    // Run scan in blocking thread
+    let scan_result = tokio::task::spawn_blocking(move || {
+        let detectors: Vec<Box<dyn codeatlas_core::detector::Detector>> = vec![
+            Box::new(codeatlas_core::RustDetectorType),
+            Box::new(codeatlas_core::TypeScriptDetectorType),
+        ];
+
+        let sink = ChannelSink {
+            scan_id: scan_id_clone,
+            channel: on_event_clone,
+        };
+
+        codeatlas_core::run_scan(&workspace, &profile, &config, &detectors, &sink, &cancel)
+    })
+    .await
+    .map_err(|e| format!("task join error: {e}"))?;
+
+    match scan_result {
+        Ok(results) => {
+            // Apply results back to host
+            let mut guard = state
+                .host
+                .lock()
+                .map_err(|e| format!("lock error: {e}"))?;
+            guard
+                .apply_scan_results(&results)
+                .map_err(|e| format!("apply results error: {e}"))?;
+
+            let _ = on_event.send(ScanEvent::Complete {
+                scan_id: scan_id.clone(),
+            });
+            Ok(())
+        }
+        Err(codeatlas_core::ScanError::Cancelled) => {
+            let _ = on_event.send(ScanEvent::Error {
+                scan_id: scan_id.clone(),
+                message: "scan cancelled".to_string(),
+            });
+            Ok(())
+        }
+        Err(e) => {
+            let _ = on_event.send(ScanEvent::Error {
+                scan_id: scan_id.clone(),
+                message: e.to_string(),
+            });
+            Err(e.to_string())
+        }
+    }
+}
+
+/// Cancel an in-progress scan.
+#[tauri::command]
+pub async fn cancel_scan(state: State<'_, AppState>) -> Result<(), String> {
+    let mut token_guard = state
+        .cancel_token
+        .lock()
+        .map_err(|e| format!("lock error: {e}"))?;
+    if let Some(token) = token_guard.take() {
+        token.cancel();
+    }
+    Ok(())
 }

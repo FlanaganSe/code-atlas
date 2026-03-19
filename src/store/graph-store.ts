@@ -16,9 +16,58 @@ import {
 	type AppEdge,
 	type AppNode,
 	computeInitialExpanded,
+	keyToId,
 	project,
 } from "@/store/graph-projection";
-import type { EdgeCategory } from "@/types/graph";
+import type { EdgeCategory, EdgeData, NodeData } from "@/types/graph";
+import type { ScanPhase } from "@/types/scan";
+
+// ---------------------------------------------------------------------------
+// Conversion: raw Rust types → React Flow types
+// ---------------------------------------------------------------------------
+
+/** Convert a raw NodeData (from Rust serde) to an AppNode (for React Flow). */
+function nodeDataToAppNode(node: NodeData): AppNode {
+	const id = keyToId(node.materializedKey);
+	return {
+		id,
+		type: node.kind,
+		position: { x: 0, y: 0 },
+		data: {
+			label: node.label,
+			kind: node.kind,
+			language: node.language,
+			materializedKey: node.materializedKey,
+			parentKey: node.parentKey,
+			isExpanded: false,
+			childCount: 0,
+			unsupportedConstructs: 0,
+		},
+		parentId: node.parentKey ? keyToId(node.parentKey) : undefined,
+	};
+}
+
+/** Convert a raw EdgeData (from Rust serde) to an AppEdge (for React Flow). */
+function edgeDataToAppEdge(edge: EdgeData): AppEdge {
+	const sourceId = keyToId(edge.sourceKey);
+	const targetId = keyToId(edge.targetKey);
+	return {
+		id: edge.edgeId,
+		source: sourceId,
+		target: targetId,
+		type: "dependency",
+		data: {
+			category: edge.category,
+			isManual: edge.kind === "manual",
+			isSuppressed: edge.overlayStatus.type === "suppressed",
+			isBundled: false,
+			bundledEdgeIds: [edge.edgeId],
+			bundledCount: 1,
+			confidence: edge.confidence,
+			edgeId: edge.edgeId,
+		},
+	};
+}
 
 // All edge categories enabled by default
 const ALL_CATEGORIES: Set<EdgeCategory> = new Set([
@@ -59,6 +108,12 @@ export interface GraphStore {
 		overlayEdges?: AppEdge[],
 		suppressedEdgeIds?: Set<string>,
 	) => void;
+	applyScanPhase: (
+		phase: ScanPhase,
+		nodes: readonly NodeData[],
+		edges: readonly EdgeData[],
+	) => void;
+	clearGraph: () => void;
 	toggleExpand: (nodeId: string) => void;
 	expandAll: () => void;
 	collapseAll: () => void;
@@ -119,6 +174,56 @@ export const useGraphStore = create<GraphStore>()((set, get) => ({
 		set({
 			...newState,
 			...runProjection(newState),
+			layoutVersion: get().layoutVersion + 1,
+		});
+	},
+
+	applyScanPhase: (phase, nodes, edges) => {
+		const state = get();
+		const newNodes = nodes.map(nodeDataToAppNode);
+		const newEdges = edges.map(edgeDataToAppEdge);
+
+		// Deduplicate: skip nodes/edges already present
+		const existingNodeIds = new Set(state.discoveredNodes.map((n) => n.id));
+		const existingEdgeIds = new Set(state.discoveredEdges.map((e) => e.id));
+
+		const uniqueNodes = newNodes.filter((n) => !existingNodeIds.has(n.id));
+		const uniqueEdges = newEdges.filter((e) => !existingEdgeIds.has(e.id));
+
+		const allNodes = [...state.discoveredNodes, ...uniqueNodes];
+		const allEdges = [...state.discoveredEdges, ...uniqueEdges];
+
+		// Recompute expanded set on first phase (package topology)
+		const expandedNodeIds =
+			phase === "packageTopology" ? computeInitialExpanded(allNodes) : state.expandedNodeIds;
+
+		const newState = {
+			discoveredNodes: allNodes,
+			discoveredEdges: allEdges,
+			overlayEdges: state.overlayEdges,
+			suppressedEdgeIds: state.suppressedEdgeIds,
+			expandedNodeIds,
+			categoryFilter: state.categoryFilter,
+			showSuppressed: state.showSuppressed,
+		};
+		set({
+			discoveredNodes: allNodes,
+			discoveredEdges: allEdges,
+			expandedNodeIds,
+			...runProjection(newState),
+			layoutVersion: state.layoutVersion + 1,
+		});
+	},
+
+	clearGraph: () => {
+		set({
+			discoveredNodes: [],
+			discoveredEdges: [],
+			overlayEdges: [],
+			suppressedEdgeIds: new Set(),
+			expandedNodeIds: new Set(),
+			projectedNodes: [],
+			projectedEdges: [],
 			layoutVersion: get().layoutVersion + 1,
 		});
 	},

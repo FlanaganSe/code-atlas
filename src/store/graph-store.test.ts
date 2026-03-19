@@ -172,4 +172,76 @@ describe("useGraphStore", () => {
 		const after = useGraphStore.getState().projectedEdges.length;
 		expect(after).toBeGreaterThanOrEqual(before);
 	});
+
+	it("applyScanPhase adds nodes and edges from raw data", () => {
+		const rawNodes = [
+			{
+				materializedKey: {
+					language: "rust" as const,
+					entityKind: "package" as const,
+					relativePath: "crates/core",
+				},
+				lineageKey: null,
+				label: "codeatlas-core",
+				kind: "package" as const,
+				language: "rust" as const,
+				parentKey: null,
+			},
+		];
+		const rawEdges: import("@/types/graph").EdgeData[] = [];
+
+		useGraphStore.getState().applyScanPhase("packageTopology", rawNodes, rawEdges);
+
+		const state = useGraphStore.getState();
+		expect(state.discoveredNodes.length).toBe(1);
+		expect(state.discoveredNodes[0].id).toBe("rust:package:crates/core");
+		expect(state.discoveredNodes[0].data.label).toBe("codeatlas-core");
+		expect(state.layoutVersion).toBeGreaterThan(0);
+	});
+
+	it("applyScanPhase deduplicates nodes on subsequent phases", () => {
+		const pkg = {
+			materializedKey: {
+				language: "rust" as const,
+				entityKind: "package" as const,
+				relativePath: "crates/core",
+			},
+			lineageKey: null,
+			label: "codeatlas-core",
+			kind: "package" as const,
+			language: "rust" as const,
+			parentKey: null,
+		};
+		useGraphStore.getState().applyScanPhase("packageTopology", [pkg], []);
+
+		const mod = {
+			materializedKey: {
+				language: "rust" as const,
+				entityKind: "module" as const,
+				relativePath: "crates/core/src/graph",
+			},
+			lineageKey: null,
+			label: "graph",
+			kind: "module" as const,
+			language: "rust" as const,
+			parentKey: pkg.materializedKey,
+		};
+		useGraphStore.getState().applyScanPhase("moduleStructure", [mod], []);
+
+		const state = useGraphStore.getState();
+		expect(state.discoveredNodes.length).toBe(2);
+	});
+
+	it("clearGraph resets all graph state", () => {
+		const { nodes, edges } = buildSmallGraph();
+		useGraphStore.getState().loadFixture(nodes, edges);
+
+		useGraphStore.getState().clearGraph();
+
+		const state = useGraphStore.getState();
+		expect(state.discoveredNodes.length).toBe(0);
+		expect(state.discoveredEdges.length).toBe(0);
+		expect(state.projectedNodes.length).toBe(0);
+		expect(state.projectedEdges.length).toBe(0);
+	});
 });
