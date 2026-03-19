@@ -38,8 +38,8 @@ export const EdgeFilterBar = memo(function EdgeFilterBar(): React.JSX.Element {
 	);
 
 	return (
-		<div className="flex items-center gap-2 border-b border-neutral-800 bg-neutral-900/60 px-4 py-1.5">
-			<span className="mr-1 text-[10px] font-medium uppercase tracking-wider text-neutral-500">
+		<div className="flex items-center gap-2 border-b border-neutral-700 bg-neutral-900/60 px-4 py-1.5">
+			<span className="mr-1 text-[10px] font-medium uppercase tracking-wider text-neutral-400">
 				Edges
 			</span>
 			{CATEGORIES.map(({ key, label, color }) => {

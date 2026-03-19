@@ -118,7 +118,7 @@ export const CommandPalette = memo(function CommandPalette({
 									{KIND_ICONS[node.type]}
 									<span className="flex-1 truncate">{node.data.label}</span>
 									{parentLabels.get(node.id) && (
-										<span className="text-[10px] text-neutral-500">
+										<span className="text-[10px] text-neutral-400">
 											{parentLabels.get(node.id)}
 										</span>
 									)}
@@ -138,7 +138,7 @@ export const CommandPalette = memo(function CommandPalette({
 									{KIND_ICONS[node.type]}
 									<span className="flex-1 truncate">{node.data.label}</span>
 									{parentLabels.get(node.id) && (
-										<span className="text-[10px] text-neutral-500">
+										<span className="text-[10px] text-neutral-400">
 											{parentLabels.get(node.id)}
 										</span>
 									)}

@@ -18,7 +18,7 @@ export const ModuleNode = memo(function ModuleNode({ id, data }: ModuleNodeProps
 			className={`relative rounded-md border ${
 				isExpanded
 					? "h-full w-full border-neutral-600/50 bg-neutral-900/30"
-					: "border-neutral-600/30 bg-neutral-800/60"
+					: "border-neutral-600/50 bg-neutral-800/60"
 			} min-w-[170px]`}
 		>
 			<Handle type="target" position={Position.Top} className="!bg-neutral-400" />
@@ -33,7 +33,7 @@ export const ModuleNode = memo(function ModuleNode({ id, data }: ModuleNodeProps
 				<Folder size={12} className="text-neutral-400" />
 				<span className="text-xs font-medium text-neutral-300">{data.label}</span>
 				{!isExpanded && data.childCount > 0 && (
-					<span className="ml-auto text-xs text-neutral-500">{data.childCount}</span>
+					<span className="ml-auto text-xs text-neutral-400">{data.childCount}</span>
 				)}
 			</div>
 			<Handle type="source" position={Position.Bottom} className="!bg-neutral-400" />

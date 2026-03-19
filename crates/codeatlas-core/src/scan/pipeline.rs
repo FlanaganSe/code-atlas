@@ -36,6 +36,7 @@ pub enum ScanError {
 /// merges everything into an `ArchGraph`, and returns aggregate results.
 ///
 /// The `cancel` token is checked between phases and can abort the scan.
+#[tracing::instrument(skip(workspace, profile, config, detectors, sink, cancel))]
 pub fn run_scan(
     workspace: &WorkspaceInfo,
     profile: &GraphProfile,

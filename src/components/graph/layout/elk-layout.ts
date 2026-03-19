@@ -189,12 +189,12 @@ function getWorker(): Worker | null {
 				type: "module",
 			});
 			worker.addEventListener("error", () => {
-				console.warn("ELK Web Worker failed to load, using main-thread fallback");
+				console.debug("ELK Web Worker failed to load, using main-thread fallback");
 				workerFailed = true;
 				worker = null;
 			});
 		} catch {
-			console.warn("ELK Web Worker creation failed, using main-thread fallback");
+			console.debug("ELK Web Worker creation failed, using main-thread fallback");
 			workerFailed = true;
 			return null;
 		}
@@ -257,6 +257,7 @@ export function layoutGraph(
 		}
 
 		debounceTimer = setTimeout(async () => {
+			const start = performance.now();
 			try {
 				const elkGraph = toElkGraph(nodes, edges, expandedNodeIds);
 				let result: ElkNode;
@@ -268,9 +269,11 @@ export function layoutGraph(
 				}
 				const positions = fromElkGraph(result);
 				const positioned = applyElkPositions(nodes, positions);
+				const elapsed = performance.now() - start;
+				console.debug(`ELK layout: ${nodes.length} nodes in ${elapsed.toFixed(0)}ms`);
 				resolve(positioned);
 			} catch (error) {
-				console.error("ELK layout failed:", error);
+				console.warn("ELK layout failed:", error);
 				resolve([...nodes]);
 			}
 		}, 300);

@@ -8,10 +8,15 @@ import { HealthIndicator } from "./components/panels/HealthIndicator";
 import { ProfileBadge } from "./components/panels/ProfileBadge";
 import { CommandPalette } from "./components/search/CommandPalette";
 import {
+	fixtureCompatibilityReport,
 	fixtureEdges,
+	fixtureGraphHealth,
 	fixtureNodes,
 	fixtureOverlayEdges,
+	fixtureParseFailures,
 	fixtureSuppressedEdgeIds,
+	fixtureUnresolvedImports,
+	fixtureUnsupportedConstructs,
 } from "./fixtures/demo-graph";
 import { useScan } from "./hooks/use-scan";
 import { fitView, getViewport } from "./hooks/viewport-ref";
@@ -82,6 +87,15 @@ export function App(): React.JSX.Element {
 
 	function handleLoadDemoGraph(): void {
 		loadFixture(fixtureNodes, fixtureEdges, fixtureOverlayEdges, new Set(fixtureSuppressedEdgeIds));
+		// Populate scan store with demo health/compatibility data
+		useScanStore.setState({
+			scanStatus: "complete",
+			compatibilityReport: fixtureCompatibilityReport,
+			graphHealth: fixtureGraphHealth,
+			unsupportedConstructs: fixtureUnsupportedConstructs,
+			parseFailures: fixtureParseFailures,
+			unresolvedImports: fixtureUnresolvedImports,
+		});
 	}
 
 	async function handleRescan(): Promise<void> {
@@ -253,7 +267,9 @@ export function App(): React.JSX.Element {
 					</>
 				) : (
 					<div className="flex-1 overflow-auto p-6">
-						{state.status === "idle" && <IdleView />}
+						{state.status === "idle" && (
+							<IdleView onOpenDirectory={handleOpenDirectory} onLoadDemo={handleLoadDemoGraph} />
+						)}
 						{state.status === "discovering" && <DiscoveringView />}
 						{state.status === "error" && <ErrorView message={state.message} />}
 						{state.status === "discovered" && <DiscoveredView result={state.result} />}
@@ -286,11 +302,40 @@ export function App(): React.JSX.Element {
 // Pre-scan discovery views (inline — kept from M2)
 // ---------------------------------------------------------------------------
 
-function IdleView(): React.JSX.Element {
+function IdleView({
+	onOpenDirectory,
+	onLoadDemo,
+}: {
+	onOpenDirectory: () => void;
+	onLoadDemo: () => void;
+}): React.JSX.Element {
 	return (
-		<div className="flex flex-col items-center justify-center gap-4 pt-32 text-neutral-400">
-			<p className="text-lg">Open a directory to discover its workspace structure.</p>
-			<p className="text-sm text-neutral-500">
+		<div className="flex flex-col items-center justify-center gap-6 pt-24 text-neutral-400">
+			<div className="text-center">
+				<h2 className="mb-2 text-2xl font-bold text-neutral-100">Welcome to Code Atlas</h2>
+				<p className="max-w-lg text-sm leading-relaxed text-neutral-400">
+					Build a profiled, evidence-backed architecture graph from your repository. Discover
+					workspace structure, visualize dependencies, and inspect edge provenance — all locally,
+					with zero network calls.
+				</p>
+			</div>
+			<div className="flex gap-4">
+				<button
+					type="button"
+					onClick={onOpenDirectory}
+					className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500"
+				>
+					Open Directory
+				</button>
+				<button
+					type="button"
+					onClick={onLoadDemo}
+					className="rounded-lg border border-neutral-700 bg-neutral-800 px-6 py-2.5 text-sm font-medium text-neutral-200 transition-colors hover:bg-neutral-700"
+				>
+					Load Demo
+				</button>
+			</div>
+			<p className="text-xs text-neutral-500">
 				Supports Cargo workspaces, pnpm/npm/yarn workspaces, and mixed monorepos.
 			</p>
 		</div>

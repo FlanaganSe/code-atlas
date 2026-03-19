@@ -174,6 +174,7 @@ impl Detector for RustDetector {
         }
     }
 
+    #[tracing::instrument(skip(self, workspace, _profile, config, sink))]
     fn detect(
         &self,
         workspace: &WorkspaceInfo,

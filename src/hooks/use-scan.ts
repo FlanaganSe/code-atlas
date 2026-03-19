@@ -36,6 +36,15 @@ export function useScan(): UseScanReturn {
 		scanIdRef.current = scanId;
 		scanStore.startScan(scanId);
 
+		// Performance instrumentation — clear stale marks from prior scans
+		performance.clearMarks("scan-start");
+		performance.clearMarks("first-meaningful-frame");
+		performance.clearMarks("scan-complete");
+		performance.clearMeasures("time-to-first-frame");
+		performance.clearMeasures("total-scan-time");
+		performance.mark("scan-start");
+		let firstFrameMarked = false;
+
 		const channel = new Channel<ScanEvent>();
 		channel.onmessage = (event: ScanEvent) => {
 			// Stale event rejection
@@ -54,6 +63,13 @@ export function useScan(): UseScanReturn {
 				useGraphStore
 					.getState()
 					.applyScanPhase(event.data.phase, event.data.nodes, event.data.edges);
+
+				// Mark first meaningful frame on first phase delivery
+				if (!firstFrameMarked) {
+					firstFrameMarked = true;
+					performance.mark("first-meaningful-frame");
+					performance.measure("time-to-first-frame", "scan-start", "first-meaningful-frame");
+				}
 			}
 
 			// Dispatch overlay events to graph store
@@ -62,9 +78,14 @@ export function useScan(): UseScanReturn {
 			}
 
 			// On scan complete, restore expanded state if this is a rescan
-			if (event.event === "complete" && savedExpandedIdsRef.current) {
-				useGraphStore.getState().restoreExpandedState(savedExpandedIdsRef.current);
-				savedExpandedIdsRef.current = null;
+			if (event.event === "complete") {
+				performance.mark("scan-complete");
+				performance.measure("total-scan-time", "scan-start", "scan-complete");
+
+				if (savedExpandedIdsRef.current) {
+					useGraphStore.getState().restoreExpandedState(savedExpandedIdsRef.current);
+					savedExpandedIdsRef.current = null;
+				}
 			}
 		};
 

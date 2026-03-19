@@ -619,7 +619,16 @@ Create a JSON fixture representing a small multi-package monorepo (~30 nodes) th
 #### M9: Performance + Demo + Polish
 **Goal:** Performance budgets met. Demo fixture works. Dark theme. Zero network calls verified.
 
-- [ ] M9: Performance + Demo + Polish — perf tuning, demo fixture, dark theme, final QA
+- [x] M9: Performance + Demo + Polish — perf tuning, demo fixture, dark theme, final QA
+  - [x] Step 1 — Performance instrumentation: tracing spans in Rust, performance marks in frontend, ELK layout timing → verify: `cargo check --workspace && pnpm typecheck`
+  - [x] Step 2 — Quality sweep: console.debug for worker fallback, missing Rust doc comments, cargo doc clean → verify: `cargo doc --workspace --no-deps && cargo clippy --workspace -- -D warnings`
+  - [x] Step 3 — Demo fixture upgrade: ~65 node SaaS monorepo with all edge categories, unsupported constructs, unresolved imports, parse failures, health, compatibility → verify: `pnpm typecheck && pnpm test`
+  - [x] Step 4 — Landing state polish: welcome message, prominent buttons, brief description → verify: `pnpm typecheck`
+  - [x] Step 5 — Dark theme audit: review all surfaces, fix contrast issues → verify: `pnpm typecheck`
+  - [x] Step 6 — Coverage + tests: measure Rust/frontend coverage, add tests to reach 80% → verify: `cargo test --workspace && pnpm test`
+  - [x] Step 7 — docs/SYSTEM.md: architecture doc for future developers → verify: file exists with content
+  - [x] Step 8 — Final verification: all checks pass, pnpm build succeeds → verify: `cargo clippy --workspace -- -D warnings && cargo test --workspace && pnpm typecheck && pnpm biome check && pnpm test && pnpm build`
+  Commit: "feat: performance instrumentation, demo fixture, dark theme polish, docs (M9)"
 
 **What to verify:**
 - First meaningful frame <2s for ≤2,000 files (test with this repo)

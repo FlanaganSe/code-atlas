@@ -563,6 +563,7 @@ impl Detector for TypeScriptDetector {
         }
     }
 
+    #[tracing::instrument(skip(self, workspace, _profile, config, sink))]
     fn detect(
         &self,
         workspace: &WorkspaceInfo,

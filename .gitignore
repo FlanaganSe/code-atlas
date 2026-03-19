@@ -25,5 +25,8 @@ src-tauri/gen/
 *.swp
 *.swo
 
+# Coverage
+coverage/
+
 # TypeScript build info
 *.tsbuildinfo
