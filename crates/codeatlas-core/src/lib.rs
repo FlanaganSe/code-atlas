@@ -70,6 +70,7 @@ pub struct DiscoveryResult {
 /// Accepts workspace discovery, scan results, and config changes.
 /// Use [`AnalysisHost::snapshot`] to get an immutable [`Analysis`]
 /// for concurrent queries.
+#[derive(Clone)]
 pub struct AnalysisHost {
     /// The architecture graph (populated by scanning in M4).
     #[expect(dead_code)]

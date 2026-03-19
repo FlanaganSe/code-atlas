@@ -20,6 +20,7 @@ use super::GraphError;
 /// The **discovered layer** contains nodes and edges found by scanning.
 /// The **overlay layer** contains manual edges, suppressions, and metadata
 /// from `.codeatlas.yaml`. The overlay never mutates the discovered layer.
+#[derive(Clone)]
 pub struct ArchGraph {
     /// The discovered graph — immutable once built.
     discovered: StableGraph<NodeData, EdgeData, Directed>,

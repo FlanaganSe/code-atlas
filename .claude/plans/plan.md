@@ -383,7 +383,14 @@ The PRD (§10) and research-strategy (§2.1) conflict on `MaterializedKey` forma
 #### M3: Static Graph Rendering
 **Goal:** React Flow renders compound nodes with ELK layout. Hardcoded fixture data — no real scanning yet. Expand/collapse works. Graph adaptation defaults work.
 
-- [ ] M3: Static Graph Rendering — React Flow + ELK compound layout with fixture data, expand/collapse, adaptive defaults
+- [x] M3: Static Graph Rendering — React Flow + ELK compound layout with fixture data, expand/collapse, adaptive defaults
+  - [x] Step 1 — Install frontend deps (@xyflow/react, elkjs, zustand, class-variance-authority) + vitest + testing-library → verify: `pnpm install && pnpm typecheck`
+  - [x] Step 2 — AnalysisHost as Tauri managed state (Mutex<AnalysisHost> in tauri::State) → verify: `cargo clippy --workspace -- -D warnings && cargo test --workspace`
+  - [x] Step 3 — Graph projection pipeline (src/store/graph-projection.ts), Zustand store (src/store/graph-store.ts), fixture data (src/fixtures/demo-graph.ts), + unit tests → verify: `pnpm test && pnpm typecheck`
+  - [x] Step 4 — ELK Web Worker (src/components/graph/layout/elk.worker.ts), layout orchestration (elk-layout.ts), + unit tests → verify: `pnpm test && pnpm typecheck`
+  - [x] Step 5 — Custom nodes (PackageNode, ModuleNode, FileNode), custom edge (DependencyEdge), GraphCanvas, App integration with "Load Demo Graph" button → verify: `pnpm typecheck && pnpm lint`
+  - [x] Step 6 — Final verification: all checks pass → verify: `cargo clippy --workspace -- -D warnings && cargo test --workspace && pnpm typecheck && pnpm lint && pnpm test`
+  Commit: "feat: static graph rendering with React Flow + ELK compound layout (M3)"
 
 **What to verify:**
 - Hardcoded graph fixture renders as nested packages → modules → files

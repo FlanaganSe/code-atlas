@@ -9,29 +9,40 @@
 		"preview": "vite preview",
 		"tauri": "tauri",
 		"typecheck": "tsc -b --noEmit",
+		"test": "vitest run",
+		"test:watch": "vitest",
 		"lint": "biome check",
 		"format": "biome format --write"
 	},
 	"dependencies": {
 		"@tauri-apps/api": "^2",
 		"@tauri-apps/plugin-dialog": "^2",
+		"@xyflow/react": "^12.10.1",
+		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
+		"elkjs": "^0.11.1",
+		"lefthook": "^2.1.4",
 		"lucide-react": "^0.525.0",
 		"react": "^19.1.0",
 		"react-dom": "^19.1.0",
-		"tailwind-merge": "^3.3.0"
+		"tailwind-merge": "^3.3.0",
+		"zustand": "^5.0.12"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.0.6",
 		"@tailwindcss/vite": "^4.1.8",
 		"@tauri-apps/cli": "^2",
+		"@testing-library/jest-dom": "^6.9.1",
+		"@testing-library/react": "^16.3.2",
 		"@types/node": "^25.5.0",
 		"@types/react": "^19.1.8",
 		"@types/react-dom": "^19.1.6",
 		"@vitejs/plugin-react": "^4.6.0",
+		"jsdom": "^29.0.0",
 		"tailwindcss": "^4.1.8",
 		"typescript": "~5.8.3",
-		"vite": "^7.0.4"
+		"vite": "^7.0.4",
+		"vitest": "^4.1.0"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [

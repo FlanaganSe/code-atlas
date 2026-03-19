@@ -1,5 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useState } from "react";
+import { GraphCanvas } from "./components/graph/GraphCanvas";
+import {
+	fixtureEdges,
+	fixtureNodes,
+	fixtureOverlayEdges,
+	fixtureSuppressedEdgeIds,
+} from "./fixtures/demo-graph";
+import { useGraphStore } from "./store/graph-store";
 import type {
 	CompatibilityAssessment,
 	CompatibilityDetail,
@@ -15,6 +23,12 @@ type AppState =
 
 export function App(): React.JSX.Element {
 	const [state, setState] = useState<AppState>({ status: "idle" });
+	const loadFixture = useGraphStore((s) => s.loadFixture);
+	const hasGraph = useGraphStore((s) => s.discoveredNodes.length > 0);
+	const expandAll = useGraphStore((s) => s.expandAll);
+	const collapseAll = useGraphStore((s) => s.collapseAll);
+	const toggleSuppressed = useGraphStore((s) => s.toggleSuppressed);
+	const showSuppressed = useGraphStore((s) => s.showSuppressed);
 
 	async function handleOpenDirectory(): Promise<void> {
 		setState({ status: "discovering" });
@@ -36,24 +50,76 @@ export function App(): React.JSX.Element {
 		}
 	}
 
+	function handleLoadDemoGraph(): void {
+		loadFixture(fixtureNodes, fixtureEdges, fixtureOverlayEdges, new Set(fixtureSuppressedEdgeIds));
+	}
+
 	return (
-		<main className="min-h-screen bg-neutral-950 p-6 text-neutral-100">
-			<header className="mb-8 flex items-center justify-between">
-				<h1 className="text-2xl font-semibold">Code Atlas</h1>
-				<button
-					type="button"
-					onClick={handleOpenDirectory}
-					disabled={state.status === "discovering"}
-					className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-				>
-					{state.status === "discovering" ? "Discovering..." : "Open Directory"}
-				</button>
+		<main className="flex h-screen flex-col bg-neutral-950 text-neutral-100">
+			<header className="flex shrink-0 items-center justify-between border-b border-neutral-800 px-6 py-3">
+				<h1 className="text-xl font-semibold">Code Atlas</h1>
+				<div className="flex items-center gap-3">
+					{hasGraph && (
+						<>
+							<button
+								type="button"
+								onClick={expandAll}
+								className="rounded bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-300 transition-colors hover:bg-neutral-700"
+							>
+								Expand All
+							</button>
+							<button
+								type="button"
+								onClick={collapseAll}
+								className="rounded bg-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-300 transition-colors hover:bg-neutral-700"
+							>
+								Collapse All
+							</button>
+							<button
+								type="button"
+								onClick={toggleSuppressed}
+								className={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+									showSuppressed
+										? "bg-amber-900/50 text-amber-300"
+										: "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
+								}`}
+							>
+								{showSuppressed ? "Hide Suppressed" : "Show Suppressed"}
+							</button>
+						</>
+					)}
+					<button
+						type="button"
+						onClick={handleLoadDemoGraph}
+						className="rounded-lg bg-green-700 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-green-600"
+					>
+						Load Demo Graph
+					</button>
+					<button
+						type="button"
+						onClick={handleOpenDirectory}
+						disabled={state.status === "discovering"}
+						className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+					>
+						{state.status === "discovering" ? "Discovering..." : "Open Directory"}
+					</button>
+				</div>
 			</header>
 
-			{state.status === "idle" && <IdleView />}
-			{state.status === "discovering" && <DiscoveringView />}
-			{state.status === "error" && <ErrorView message={state.message} />}
-			{state.status === "discovered" && <DiscoveredView result={state.result} />}
+			<div className="flex min-h-0 flex-1">
+				{hasGraph ? (
+					<div className="flex-1">
+						<GraphCanvas />
+					</div>
+				) : (
+					<div className="flex-1 overflow-auto p-6">
+						{state.status === "idle" && <IdleView />}
+						{state.status === "discovering" && <DiscoveringView />}
+						{state.status === "error" && <ErrorView message={state.message} />}
+						{state.status === "discovered" && <DiscoveredView result={state.result} />}
+					</div>
+				)}
+			</div>
 		</main>
 	);
 }

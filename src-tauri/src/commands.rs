@@ -5,7 +5,10 @@
 //! and return serialized results.
 
 use codeatlas_core::DiscoveryResult;
+use tauri::State;
 use tauri_plugin_dialog::DialogExt;
+
+use crate::AppState;
 
 /// Open a native directory picker dialog.
 ///
@@ -32,17 +35,39 @@ pub async fn open_directory(app: tauri::AppHandle) -> Result<Option<String>, Str
 /// detector compatibility assessments.
 ///
 /// Uses `spawn_blocking` because `cargo_metadata` is synchronous
-/// and can take 2-10s on first run.
+/// and can take 2-10s on first run. The AnalysisHost is persisted
+/// as Tauri managed state so snapshot() carries accumulated state.
 #[tauri::command]
-pub async fn discover_workspace(path: String) -> Result<DiscoveryResult, String> {
-    let result = tokio::task::spawn_blocking(move || {
+pub async fn discover_workspace(
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<DiscoveryResult, String> {
+    // Clone the host out of managed state so we can move it into spawn_blocking.
+    // NOTE: This has a TOCTOU race if multiple discover_workspace calls run
+    // concurrently — the last to finish wins. Acceptable for POC since there's
+    // only one UI button. M4 should switch to tokio::sync::Mutex.
+    let mut host = state
+        .host
+        .lock()
+        .map_err(|e| format!("lock error: {e}"))?
+        .clone();
+
+    let (result, updated_host) = tokio::task::spawn_blocking(move || {
         let dir = camino::Utf8Path::new(&path);
-        let mut host = codeatlas_core::AnalysisHost::new();
-        host.discover_workspace(dir)
+        let res = host.discover_workspace(dir);
+        (res, host)
     })
     .await
-    .map_err(|e| format!("task join error: {e}"))?
-    .map_err(|e| format!("discovery error: {e}"))?;
+    .map_err(|e| format!("task join error: {e}"))?;
+
+    let result = result.map_err(|e| format!("discovery error: {e}"))?;
+
+    // Write the updated host back to managed state
+    let mut guard = state
+        .host
+        .lock()
+        .map_err(|e| format!("lock error: {e}"))?;
+    *guard = updated_host;
 
     Ok(result)
 }
