@@ -172,17 +172,30 @@ export function applyElkPositions(
 }
 
 // ---------------------------------------------------------------------------
-// Worker-based layout
+// Layout execution — worker with main-thread fallback
 // ---------------------------------------------------------------------------
 
 let worker: Worker | null = null;
+let workerFailed = false;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-function getWorker(): Worker {
+function getWorker(): Worker | null {
+	if (workerFailed) return null;
 	if (!worker) {
-		worker = new Worker(new URL("./elk.worker.ts", import.meta.url), {
-			type: "module",
-		});
+		try {
+			worker = new Worker(new URL("./elk.worker.ts", import.meta.url), {
+				type: "module",
+			});
+			worker.addEventListener("error", () => {
+				console.warn("ELK Web Worker failed to load, using main-thread fallback");
+				workerFailed = true;
+				worker = null;
+			});
+		} catch {
+			console.warn("ELK Web Worker creation failed, using main-thread fallback");
+			workerFailed = true;
+			return null;
+		}
 	}
 	return worker;
 }
@@ -190,13 +203,23 @@ function getWorker(): Worker {
 function layoutViaWorker(elkGraph: ElkNode): Promise<ElkNode> {
 	return new Promise((resolve, reject) => {
 		const w = getWorker();
+		if (!w) {
+			reject(new Error("worker unavailable"));
+			return;
+		}
+
+		const timeout = setTimeout(() => {
+			w.removeEventListener("message", handler);
+			reject(new Error("worker timeout"));
+		}, 5000);
 
 		const handler = (event: MessageEvent) => {
+			clearTimeout(timeout);
 			w.removeEventListener("message", handler);
 			if (event.data.type === "success") {
 				resolve(event.data.data);
 			} else {
-				reject(new Error(event.data.error));
+				reject(new Error(event.data.error ?? "worker layout error"));
 			}
 		};
 
@@ -205,8 +228,20 @@ function layoutViaWorker(elkGraph: ElkNode): Promise<ElkNode> {
 	});
 }
 
+// Main-thread fallback using ELK bundled (lazy-loaded)
+let mainThreadElk: { layout: (graph: ElkNode) => Promise<ElkNode> } | null = null;
+
+async function layoutMainThread(elkGraph: ElkNode): Promise<ElkNode> {
+	if (!mainThreadElk) {
+		const ELK = (await import("elkjs/lib/elk.bundled.js")).default;
+		mainThreadElk = new ELK();
+	}
+	return mainThreadElk.layout(elkGraph);
+}
+
 /**
  * Orchestrate ELK layout: build graph → post to worker → flatten → return positioned nodes.
+ * Falls back to main-thread ELK if the worker is unavailable.
  * Debounced at 300ms for rapid expand/collapse.
  */
 export function layoutGraph(
@@ -222,13 +257,18 @@ export function layoutGraph(
 		debounceTimer = setTimeout(async () => {
 			try {
 				const elkGraph = toElkGraph(nodes, edges, expandedNodeIds);
-				const result = await layoutViaWorker(elkGraph);
+				let result: ElkNode;
+				try {
+					result = await layoutViaWorker(elkGraph);
+				} catch {
+					// Worker failed — fall back to main thread
+					result = await layoutMainThread(elkGraph);
+				}
 				const positions = fromElkGraph(result);
 				const positioned = applyElkPositions(nodes, positions);
 				resolve(positioned);
 			} catch (error) {
 				console.error("ELK layout failed:", error);
-				// Return nodes unchanged on error
 				resolve([...nodes]);
 			}
 		}, 300);
