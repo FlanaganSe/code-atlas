@@ -10,47 +10,13 @@
 import { memo, useCallback, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+	CATEGORY_COLORS,
+	CATEGORY_LABELS,
+	CONFIDENCE_DESCRIPTIONS,
+	KIND_LABELS,
+} from "@/constants/edge-styles";
 import type { AppEdgeData } from "@/store/graph-projection";
-import type { Confidence, EdgeCategory, EdgeKind } from "@/types/graph";
-
-/** Okabe-Ito colors matching DependencyEdge. */
-const CATEGORY_COLORS: Record<EdgeCategory, string> = {
-	value: "#0072B2",
-	typeOnly: "#56B4E9",
-	dev: "#E69F00",
-	build: "#F0E442",
-	normal: "#009E73",
-	manual: "#CC79A7",
-	test: "#D55E00",
-	peer: "#999999",
-};
-
-const CATEGORY_LABELS: Record<EdgeCategory, string> = {
-	value: "Value",
-	typeOnly: "Type-only",
-	dev: "Dev",
-	build: "Build",
-	normal: "Normal",
-	manual: "Manual",
-	test: "Test",
-	peer: "Peer",
-};
-
-const KIND_LABELS: Record<EdgeKind, string> = {
-	imports: "Imports",
-	reExports: "Re-exports",
-	contains: "Contains",
-	dependsOn: "Depends on",
-	manual: "Manual",
-};
-
-const CONFIDENCE_DESCRIPTIONS: Record<Confidence, string> = {
-	structural: "From manifests/config",
-	syntactic: "From source code parsing",
-	resolverAware: "Validated against filesystem",
-	semantic: "Type-system aware",
-	runtime: "Observed at execution",
-};
 
 interface EdgeProvenancePopoverProps {
 	/** Screen position to anchor the popover. */

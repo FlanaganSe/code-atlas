@@ -94,34 +94,42 @@ struct ChannelSink {
 
 impl ScanSink for ChannelSink {
     fn on_compatibility(&self, report: CompatibilityReport) {
-        let _ = self.channel.send(ScanEvent::CompatibilityReport {
+        if let Err(e) = self.channel.send(ScanEvent::CompatibilityReport {
             scan_id: self.scan_id.clone(),
             report,
-        });
+        }) {
+            eprintln!("[codeatlas] channel send failed (compatibility): {e}");
+        }
     }
 
     fn on_phase(&self, phase: ScanPhase, nodes: Vec<NodeData>, edges: Vec<EdgeData>) {
-        let _ = self.channel.send(ScanEvent::Phase {
+        if let Err(e) = self.channel.send(ScanEvent::Phase {
             scan_id: self.scan_id.clone(),
             phase,
             nodes,
             edges,
-        });
+        }) {
+            eprintln!("[codeatlas] channel send failed (phase): {e}");
+        }
     }
 
     fn on_health(&self, health: GraphHealth) {
-        let _ = self.channel.send(ScanEvent::Health {
+        if let Err(e) = self.channel.send(ScanEvent::Health {
             scan_id: self.scan_id.clone(),
             health,
-        });
+        }) {
+            eprintln!("[codeatlas] channel send failed (health): {e}");
+        }
     }
 
     fn on_progress(&self, scanned: usize, total: usize) {
-        let _ = self.channel.send(ScanEvent::Progress {
+        if let Err(e) = self.channel.send(ScanEvent::Progress {
             scan_id: self.scan_id.clone(),
             scanned,
             total,
-        });
+        }) {
+            eprintln!("[codeatlas] channel send failed (progress): {e}");
+        }
     }
 
     fn on_details(
@@ -130,20 +138,24 @@ impl ScanSink for ChannelSink {
         parse_failures: Vec<ParseFailure>,
         unresolved_imports: Vec<UnresolvedImport>,
     ) {
-        let _ = self.channel.send(ScanEvent::Details {
+        if let Err(e) = self.channel.send(ScanEvent::Details {
             scan_id: self.scan_id.clone(),
             unsupported_constructs,
             parse_failures,
             unresolved_imports,
-        });
+        }) {
+            eprintln!("[codeatlas] channel send failed (details): {e}");
+        }
     }
 
     fn on_overlay(&self, manual_edges: Vec<EdgeData>, suppressed_edge_ids: Vec<String>) {
-        let _ = self.channel.send(ScanEvent::Overlay {
+        if let Err(e) = self.channel.send(ScanEvent::Overlay {
             scan_id: self.scan_id.clone(),
             manual_edges,
             suppressed_edge_ids,
-        });
+        }) {
+            eprintln!("[codeatlas] channel send failed (overlay): {e}");
+        }
     }
 }
 

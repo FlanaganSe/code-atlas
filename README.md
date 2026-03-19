@@ -2,7 +2,7 @@
 
 A local-first desktop app that turns a codebase into an interactive, zoomable architecture map. Point it at a repo, get a navigable nested graph — packages, modules, files, and their dependencies — without sending code anywhere.
 
-**Status: WIP — product requirements and research are still being finalized. No application code yet.**
+**Status: POC complete (M1–M9).** Rust + TypeScript scanning, interactive compound graph visualization, health/provenance/overlay, golden corpus validation.
 
 ## Goal
 
@@ -19,8 +19,10 @@ Tauri v2 (Rust backend + React/TypeScript frontend), React Flow v12, ELK.js, pet
 ## Docs
 
 - [`docs/prd.md`](docs/prd.md) — Product requirements (POC / MVP / Vision phases)
-- [`research/consolidated-technical-decisions.md`](research/consolidated-technical-decisions.md) — Technical decisions with rationale
-- [`research/consolidated-market-and-product.md`](research/consolidated-market-and-product.md) — Market analysis and product positioning
+- [`docs/research-implementation.md`](docs/research-implementation.md) — Library APIs, architecture patterns, implementation research
+- [`docs/research-strategy.md`](docs/research-strategy.md) — Product direction, competitive landscape, strategy
+- [`docs/SYSTEM.md`](docs/SYSTEM.md) — System architecture documentation
+- [`docs/decisions.md`](docs/decisions.md) — Architectural Decision Records
 
 ## Development
 

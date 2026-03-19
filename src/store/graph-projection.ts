@@ -375,7 +375,7 @@ function sortParentsFirst(nodes: AppNode[]): AppNode[] {
 
 	const depth = new Map<string, number>();
 
-	function getDepth(id: string): number {
+	function getDepth(id: string, visited?: Set<string>): number {
 		const cached = depth.get(id);
 		if (cached !== undefined) return cached;
 		const node = nodeMap.get(id);
@@ -383,7 +383,13 @@ function sortParentsFirst(nodes: AppNode[]): AppNode[] {
 			depth.set(id, 0);
 			return 0;
 		}
-		const d = getDepth(node.parentId) + 1;
+		const seen = visited ?? new Set<string>();
+		if (seen.has(id)) {
+			depth.set(id, 0);
+			return 0;
+		}
+		seen.add(id);
+		const d = getDepth(node.parentId, seen) + 1;
 		depth.set(id, d);
 		return d;
 	}

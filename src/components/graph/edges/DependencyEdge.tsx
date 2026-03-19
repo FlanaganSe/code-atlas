@@ -1,36 +1,12 @@
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath } from "@xyflow/react";
 import { memo } from "react";
+import {
+	CATEGORY_COLORS,
+	EDGE_DASH,
+	SUPPRESSED_COLOR,
+	SUPPRESSED_DASH,
+} from "@/constants/edge-styles";
 import type { AppEdgeData } from "@/store/graph-projection";
-import type { EdgeCategory } from "@/types/graph";
-
-/**
- * Okabe-Ito palette for edge categories.
- */
-const EDGE_COLORS: Record<EdgeCategory, string> = {
-	value: "#0072B2",
-	typeOnly: "#56B4E9",
-	dev: "#E69F00",
-	build: "#F0E442",
-	normal: "#009E73",
-	manual: "#CC79A7",
-	test: "#D55E00",
-	peer: "#999999",
-};
-
-const EDGE_DASH: Record<string, string | undefined> = {
-	value: undefined, // solid
-	typeOnly: "5,5",
-	dev: "2,2",
-	build: undefined,
-	normal: undefined,
-	manual: undefined, // uses stroke-width instead
-	test: "8,4",
-	peer: "4,4",
-};
-
-// Suppressed override
-const SUPPRESSED_COLOR = "#999999";
-const SUPPRESSED_DASH = "10,5";
 
 interface DependencyEdgeProps {
 	id: string;
@@ -55,7 +31,7 @@ export const DependencyEdge = memo(function DependencyEdge({
 	const isManual = data?.isManual ?? false;
 	const bundledCount = data?.bundledCount ?? 0;
 
-	const color = isSuppressed ? SUPPRESSED_COLOR : EDGE_COLORS[category];
+	const color = isSuppressed ? SUPPRESSED_COLOR : CATEGORY_COLORS[category];
 	const dash = isSuppressed ? SUPPRESSED_DASH : EDGE_DASH[category];
 	const strokeWidth = isManual ? 3 : isBundled ? 2 : 1.5;
 

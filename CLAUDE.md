@@ -1,6 +1,6 @@
-# Tauri Zoom Thing
+# Code Atlas
 
-Tauri desktop app with zoom/pan features — Rust backend, TypeScript + React frontend.
+Local-first desktop app that builds an architecture graph from a repository and renders it as an interactive, zoomable map. Rust backend (codeatlas-core + Tauri shell), React + TypeScript frontend.
 
 ## Commands
 ```bash
@@ -9,7 +9,7 @@ pnpm build            # Production build
 pnpm test             # Frontend unit tests (Vitest)
 cargo test            # Rust backend tests
 cargo clippy          # Rust lint
-pnpm lint             # Frontend lint (ESLint)
+pnpm lint             # Frontend lint (Biome)
 pnpm typecheck        # TypeScript type check
 ```
 
@@ -20,8 +20,7 @@ pnpm typecheck        # TypeScript type check
 @.claude/rules/stack.md
 
 ## System
-<!-- Uncomment when SYSTEM.md has real content: -->
-<!-- @docs/SYSTEM.md -->
+@docs/SYSTEM.md
 
 ## Decisions
 See `docs/decisions.md` — append-only ADR log. Read during planning, not loaded every session.

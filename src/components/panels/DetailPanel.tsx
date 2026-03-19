@@ -21,32 +21,11 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CATEGORY_COLORS, CATEGORY_LABELS } from "@/constants/edge-styles";
 import type { AppEdge, AppNode, AppNodeData } from "@/store/graph-projection";
 import { useGraphStore } from "@/store/graph-store";
 import { useScanStore } from "@/store/scan-store";
 import type { EdgeCategory } from "@/types/graph";
-
-const CATEGORY_COLORS: Record<EdgeCategory, string> = {
-	value: "#0072B2",
-	typeOnly: "#56B4E9",
-	dev: "#E69F00",
-	build: "#F0E442",
-	normal: "#009E73",
-	manual: "#CC79A7",
-	test: "#D55E00",
-	peer: "#999999",
-};
-
-const CATEGORY_LABELS: Record<EdgeCategory, string> = {
-	value: "Value",
-	typeOnly: "Type-only",
-	dev: "Dev",
-	build: "Build",
-	normal: "Normal",
-	manual: "Manual",
-	test: "Test",
-	peer: "Peer",
-};
 
 const KIND_ICONS: Record<string, React.JSX.Element> = {
 	package: <Package size={16} className="text-blue-400" />,
