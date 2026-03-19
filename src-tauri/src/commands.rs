@@ -150,11 +150,10 @@ pub async fn discover_workspace(
 /// Results stream to the frontend via `on_event` channel.
 #[tauri::command]
 pub async fn start_scan(
-    _path: String,
+    scan_id: String,
     on_event: Channel<ScanEvent>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let scan_id = uuid::Uuid::new_v4().to_string();
 
     // Cancel any existing scan
     {

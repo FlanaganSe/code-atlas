@@ -19,14 +19,14 @@ interface UseScanReturn {
 export function useScan(): UseScanReturn {
 	const scanIdRef = useRef<string | null>(null);
 
-	const startScan = useCallback(async (path: string): Promise<void> => {
+	const startScan = useCallback(async (_path: string): Promise<void> => {
 		const scanStore = useScanStore.getState();
 		const graphStore = useGraphStore.getState();
 
 		// Clear existing graph for a fresh scan
 		graphStore.clearGraph();
 
-		// Generate scan ID client-side for immediate stale rejection
+		// Generate scan ID — shared between frontend and backend
 		const scanId = crypto.randomUUID();
 		scanIdRef.current = scanId;
 		scanStore.startScan(scanId);
@@ -53,7 +53,7 @@ export function useScan(): UseScanReturn {
 		};
 
 		try {
-			await invoke("start_scan", { path, onEvent: channel });
+			await invoke("start_scan", { scanId, onEvent: channel });
 		} catch (err) {
 			useScanStore.getState().handleScanEvent({
 				event: "error",
@@ -68,15 +68,9 @@ export function useScan(): UseScanReturn {
 	const cancelScan = useCallback(async (): Promise<void> => {
 		try {
 			await invoke("cancel_scan");
-			const scanStore = useScanStore.getState();
-			if (scanStore.activeScanId) {
-				scanStore.handleScanEvent({
-					event: "error",
-					data: {
-						scanId: scanStore.activeScanId,
-						message: "scan cancelled",
-					},
-				});
+			const store = useScanStore.getState();
+			if (store.activeScanId && store.scanStatus === "scanning") {
+				useScanStore.setState({ scanStatus: "cancelled", progress: null });
 			}
 		} catch {
 			// Ignore cancel errors

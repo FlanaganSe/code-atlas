@@ -356,7 +356,6 @@ dependencies = [
  "tauri-plugin-shell",
  "tokio",
  "tokio-util",
- "uuid",
 ]
 
 [[package]]

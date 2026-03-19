@@ -7,9 +7,7 @@
       "Bash(npx tsc *)",
       "Bash(npx vitest *)",
       "Bash(cargo *)",
-      "Bash(rustup *)"
-    ],
-    "ask": [
+      "Bash(rustup *)",
       "Edit",
       "Write",
       "Bash(git add *)",
@@ -17,6 +15,8 @@
       "Bash(curl *)",
       "Bash(cd *)",
       "Bash(npm *)"
+    ],
+    "ask": [
     ],
     "deny": [
       "Read(**/.env*)",

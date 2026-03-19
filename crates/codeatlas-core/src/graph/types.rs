@@ -290,6 +290,7 @@ pub enum UnsupportedConstructType {
     DynamicImport,
     FrameworkConvention,
     ExportsCondition,
+    IncludeMacro,
 }
 
 // ---------------------------------------------------------------------------

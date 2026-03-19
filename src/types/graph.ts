@@ -134,7 +134,8 @@ export type UnsupportedConstructType =
 	| "procMacro"
 	| "dynamicImport"
 	| "frameworkConvention"
-	| "exportsCondition";
+	| "exportsCondition"
+	| "includeMacro";
 
 // ---------------------------------------------------------------------------
 // UnsupportedConstruct

@@ -109,44 +109,49 @@ pub fn run_scan(
             .collect();
         (pkg_nodes, pkg_edges)
     };
-    sink.on_phase(ScanPhase::PackageTopology, pkg_nodes.clone(), pkg_edges.clone());
+    sink.on_phase(ScanPhase::PackageTopology, pkg_nodes, pkg_edges);
 
     if cancel.is_cancelled() {
         return Err(ScanError::Cancelled);
     }
 
-    // Phase 2: Module structure
+    // Phase 2: Module structure (using HashSet for O(1) lookups)
     let (mod_nodes, mod_edges): (Vec<_>, Vec<_>) = {
         let mod_nodes: Vec<_> = all_nodes
             .iter()
             .filter(|n| n.kind == crate::graph::types::NodeKind::Module)
             .cloned()
             .collect();
+        let mod_node_keys: std::collections::HashSet<_> = mod_nodes
+            .iter()
+            .map(|n| &n.materialized_key)
+            .collect();
         let mod_edges: Vec<_> = all_edges
             .iter()
             .filter(|e| {
                 e.kind == crate::graph::types::EdgeKind::Contains
-                    && all_nodes.iter().any(|n| {
-                        n.materialized_key == e.target_key
-                            && n.kind == crate::graph::types::NodeKind::Module
-                    })
+                    && mod_node_keys.contains(&e.target_key)
             })
             .cloned()
             .collect();
         (mod_nodes, mod_edges)
     };
-    sink.on_phase(ScanPhase::ModuleStructure, mod_nodes.clone(), mod_edges.clone());
+    sink.on_phase(ScanPhase::ModuleStructure, mod_nodes, mod_edges);
 
     if cancel.is_cancelled() {
         return Err(ScanError::Cancelled);
     }
 
-    // Phase 3: File edges
+    // Phase 3: File edges (using HashSet for O(1) lookups)
     let (file_nodes, file_edges): (Vec<_>, Vec<_>) = {
         let file_nodes: Vec<_> = all_nodes
             .iter()
             .filter(|n| n.kind == crate::graph::types::NodeKind::File)
             .cloned()
+            .collect();
+        let file_node_keys: std::collections::HashSet<_> = file_nodes
+            .iter()
+            .map(|n| &n.materialized_key)
             .collect();
         let file_edges: Vec<_> = all_edges
             .iter()
@@ -154,16 +159,13 @@ pub fn run_scan(
                 e.kind == crate::graph::types::EdgeKind::Imports
                     || e.kind == crate::graph::types::EdgeKind::ReExports
                     || (e.kind == crate::graph::types::EdgeKind::Contains
-                        && all_nodes.iter().any(|n| {
-                            n.materialized_key == e.target_key
-                                && n.kind == crate::graph::types::NodeKind::File
-                        }))
+                        && file_node_keys.contains(&e.target_key))
             })
             .cloned()
             .collect();
         (file_nodes, file_edges)
     };
-    sink.on_phase(ScanPhase::FileEdges, file_nodes.clone(), file_edges.clone());
+    sink.on_phase(ScanPhase::FileEdges, file_nodes, file_edges);
 
     // Merge into ArchGraph
     let mut graph = ArchGraph::new();
@@ -259,15 +261,17 @@ impl PhaseSink {
 
 impl DetectorSink for PhaseSink {
     fn on_nodes(&self, nodes: Vec<NodeData>) {
-        if let Ok(mut collected) = self.nodes.lock() {
-            collected.extend(nodes);
-        }
+        self.nodes
+            .lock()
+            .expect("PhaseSink nodes mutex poisoned")
+            .extend(nodes);
     }
 
     fn on_edges(&self, edges: Vec<EdgeData>) {
-        if let Ok(mut collected) = self.edges.lock() {
-            collected.extend(edges);
-        }
+        self.edges
+            .lock()
+            .expect("PhaseSink edges mutex poisoned")
+            .extend(edges);
     }
 }
 

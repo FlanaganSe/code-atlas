@@ -895,6 +895,18 @@ fn extract_use_edges(
                 Err(_) => continue,
             };
 
+            // Skip grouped/tree imports like `use crate::{foo, bar}`
+            // These produce a use_tree_list node with braces in the text.
+            // File/module granularity doesn't need to decompose them.
+            if use_path.contains('{') || use_path.contains('}') {
+                continue;
+            }
+
+            // Skip glob imports like `use crate::foo::*`
+            if use_path.contains('*') {
+                continue;
+            }
+
             let start_line = capture.node.start_position().row as u32 + 1;
             let end_line = capture.node.end_position().row as u32 + 1;
 
@@ -1126,7 +1138,7 @@ fn detect_include_constructs(
                 let end_line = capture.node.end_position().row as u32 + 1;
 
                 report.unsupported_constructs.push(UnsupportedConstruct {
-                    construct_type: UnsupportedConstructType::CfgGate, // Using IncludeMacro would be ideal but we use CfgGate as catch-all
+                    construct_type: UnsupportedConstructType::IncludeMacro,
                     location: SourceLocation {
                         path: file_relative.to_owned(),
                         start_line,
