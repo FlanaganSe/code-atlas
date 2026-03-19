@@ -135,7 +135,10 @@ export type UnsupportedConstructType =
 	| "dynamicImport"
 	| "frameworkConvention"
 	| "exportsCondition"
-	| "includeMacro";
+	| "includeMacro"
+	| "commonJsRequire"
+	| "projectReferences"
+	| "yarnPnp";
 
 // ---------------------------------------------------------------------------
 // UnsupportedConstruct

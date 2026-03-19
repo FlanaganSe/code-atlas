@@ -18,5 +18,6 @@ cargo_metadata.workspace = true
 tokio-util.workspace = true
 tree-sitter.workspace = true
 tree-sitter-rust.workspace = true
+tree-sitter-typescript.workspace = true
 rayon.workspace = true
 ignore.workspace = true

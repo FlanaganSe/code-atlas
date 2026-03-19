@@ -327,7 +327,7 @@ fn detect_package_manager(root: &Utf8Path) -> String {
 ///
 /// This is a simple heuristic — it handles `//` comments outside strings.
 /// Not fully JSONC-compliant but sufficient for tsconfig.json files.
-fn strip_jsonc_comments(input: &str) -> String {
+pub(crate) fn strip_jsonc_comments(input: &str) -> String {
     let mut result = String::with_capacity(input.len());
     let mut in_string = false;
     let mut chars = input.chars().peekable();

@@ -21,6 +21,7 @@ tokio = { version = "1", features = ["rt", "macros"] }
 tokio-util = "0.7"
 tree-sitter = "0.26"
 tree-sitter-rust = "0.24"
+tree-sitter-typescript = "0.23"
 rayon = "1"
 uuid = { version = "1", features = ["v4"] }
 ignore = "0.4"

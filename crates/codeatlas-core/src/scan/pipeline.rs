@@ -208,15 +208,17 @@ pub fn run_scan(
     };
     // Add source-level findings to the report
     if !all_results.unsupported_constructs.is_empty() {
+        use crate::graph::types::UnsupportedConstructType as UCT;
+
+        let cfg_count = all_results.unsupported_constructs.iter()
+            .filter(|c| c.construct_type == UCT::CfgGate).count();
+        let dynamic_count = all_results.unsupported_constructs.iter()
+            .filter(|c| c.construct_type == UCT::DynamicImport).count();
+        let require_count = all_results.unsupported_constructs.iter()
+            .filter(|c| c.construct_type == UCT::CommonJsRequire).count();
+
         for assessment in &mut enriched_report.assessments {
-            let cfg_count = all_results
-                .unsupported_constructs
-                .iter()
-                .filter(|c| {
-                    c.construct_type == crate::graph::types::UnsupportedConstructType::CfgGate
-                })
-                .count();
-            if cfg_count > 0 {
+            if assessment.language == crate::graph::types::Language::Rust && cfg_count > 0 {
                 assessment.details.push(CompatibilityDetail {
                     feature: "Source-level cfg gates".to_string(),
                     status: crate::health::compatibility::SupportStatus::Partial,
@@ -224,6 +226,26 @@ pub fn run_scan(
                         "{cfg_count} #[cfg(...)] gate(s) detected in source — modules included assuming default features"
                     ),
                 });
+            }
+            if assessment.language == crate::graph::types::Language::TypeScript {
+                if dynamic_count > 0 {
+                    assessment.details.push(CompatibilityDetail {
+                        feature: "Dynamic imports".to_string(),
+                        status: crate::health::compatibility::SupportStatus::Partial,
+                        explanation: format!(
+                            "{dynamic_count} dynamic import() call(s) detected — not statically resolved"
+                        ),
+                    });
+                }
+                if require_count > 0 {
+                    assessment.details.push(CompatibilityDetail {
+                        feature: "CommonJS require()".to_string(),
+                        status: crate::health::compatibility::SupportStatus::Partial,
+                        explanation: format!(
+                            "{require_count} require() call(s) detected — not resolved in POC"
+                        ),
+                    });
+                }
             }
         }
     }
@@ -281,7 +303,7 @@ fn _assert_phase_sink_send_sync(_: &PhaseSink) {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::detector::RustDetector;
+    use crate::detector::{RustDetector, TypeScriptDetector};
 
     #[test]
     fn scan_pipeline_on_this_project() {
@@ -294,7 +316,10 @@ mod tests {
             crate::workspace::discover_workspace(project_root).expect("discovery should succeed");
         let config = RepoConfig::load_from_dir(&workspace.root).unwrap_or_else(|_| RepoConfig::default_config());
         let profile = GraphProfile::detect_from_workspace(&workspace);
-        let detectors: Vec<Box<dyn Detector>> = vec![Box::new(RustDetector)];
+        let detectors: Vec<Box<dyn Detector>> = vec![
+            Box::new(RustDetector),
+            Box::new(TypeScriptDetector),
+        ];
         let cancel = CancellationToken::new();
 
         let collecting_sink = CollectingScanSink::default();
@@ -305,6 +330,19 @@ mod tests {
         // Should discover nodes
         assert!(!results.nodes.is_empty(), "should discover nodes");
         assert!(!results.edges.is_empty(), "should discover edges");
+
+        // Rust detector should produce nodes (this project has a Cargo workspace)
+        let rust_nodes = results.nodes.iter()
+            .filter(|n| n.language == crate::graph::types::Language::Rust)
+            .count();
+        assert!(rust_nodes > 0, "should have Rust nodes");
+
+        // No duplicate MaterializedKeys
+        let all_keys: Vec<_> = results.nodes.iter()
+            .map(|n| &n.materialized_key)
+            .collect();
+        let unique_keys: std::collections::HashSet<_> = all_keys.iter().collect();
+        assert_eq!(all_keys.len(), unique_keys.len(), "no MaterializedKey collisions");
 
         // Should have streamed phases
         let phases = collecting_sink.phases();
@@ -347,6 +385,40 @@ mod tests {
         let result = run_scan(&workspace, &profile, &config, &detectors, &(), &cancel);
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), ScanError::Cancelled));
+    }
+
+    #[test]
+    fn scan_ts_monorepo_fixture() {
+        let fixture_dir = camino::Utf8Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(|p| p.parent())
+            .expect("project root")
+            .join("tests/fixtures/ts-monorepo");
+
+        if !fixture_dir.exists() {
+            return;
+        }
+
+        let workspace =
+            crate::workspace::discover_workspace(&fixture_dir).expect("discovery should succeed");
+        let config = RepoConfig::default_config();
+        let profile = GraphProfile::detect_from_workspace(&workspace);
+        let detectors: Vec<Box<dyn Detector>> = vec![Box::new(TypeScriptDetector)];
+        let cancel = CancellationToken::new();
+
+        let collecting_sink = CollectingScanSink::default();
+        let results =
+            run_scan(&workspace, &profile, &config, &detectors, &collecting_sink, &cancel)
+                .expect("scan should succeed");
+
+        // Should have TS nodes only
+        assert!(!results.nodes.is_empty(), "should discover TS nodes");
+        assert!(results.nodes.iter().all(|n| n.language == crate::graph::types::Language::TypeScript));
+
+        // Compatibility report should be final
+        let compat = collecting_sink.compatibility();
+        assert!(compat.is_some());
+        assert!(!compat.expect("compat").is_provisional);
     }
 
     /// Collecting sink for testing scan pipeline output.

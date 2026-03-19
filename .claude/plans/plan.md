@@ -501,7 +501,13 @@ Create a JSON fixture representing a small multi-package monorepo (~30 nodes) th
 #### M5: TypeScript Detector
 **Goal:** TypeScript detector parses a real TS workspace. Import resolution with tsconfig paths. Edge categories captured.
 
-- [ ] M5: TypeScript Detector — tree-sitter TS parsing, workspace package discovery, tsconfig paths resolution, value/type-only edge categories
+- [x] M5: TypeScript Detector — tree-sitter TS parsing, workspace package discovery, tsconfig paths resolution, value/type-only edge categories
+  - [x] Step 1 — Add tree-sitter-typescript dep, new UnsupportedConstructType variants, extend TS fixtures with source files, create ts-unsupported fixture → verify: `cargo check -p codeatlas-core`
+  - [x] Step 2 — Write tree-sitter query validation tests (import, import type, inline type, re-exports, dynamic import, require, TSX) → verify: `cargo test -p codeatlas-core -- typescript`
+  - [x] Step 3 — Implement TsConfigResolver (paths, baseUrl, workspace packages, relative path probing) + resolution tests → verify: `cargo test -p codeatlas-core -- typescript`
+  - [x] Step 4 — Implement TypeScriptDetector::detect() (Phase 1–3: packages, modules, file edges) → verify: `cargo test -p codeatlas-core -- typescript`
+  - [x] Step 5 — Register TS detector in pipeline, update enrichment, mixed-repo integration test, frontend type updates → verify: `cargo clippy --workspace -- -D warnings && cargo test --workspace && pnpm typecheck && pnpm lint && pnpm test`
+  Commit: "feat: TypeScript detector + streaming scan pipeline (M5)"
 
 **What to verify:**
 - Workspace packages discovered from `pnpm-workspace.yaml` or `package.json` `workspaces`

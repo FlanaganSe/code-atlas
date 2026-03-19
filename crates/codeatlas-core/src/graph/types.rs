@@ -291,6 +291,9 @@ pub enum UnsupportedConstructType {
     FrameworkConvention,
     ExportsCondition,
     IncludeMacro,
+    CommonJsRequire,
+    ProjectReferences,
+    YarnPnp,
 }
 
 // ---------------------------------------------------------------------------
